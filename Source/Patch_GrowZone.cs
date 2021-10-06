@@ -126,7 +126,10 @@ namespace SmartFarming
                 var plants = __instance.Map.listerThings.ThingsOfDef(zone.GetPlantDefToGrow())?.Cast<Plant>();
                 foreach (var plant in plants)
                 {
-				    if (plant.Growth >= plant.def.plant.harvestMinGrowth && !plant.Map.designationManager.HasMapDesignationOn(plant) && plant.Map.zoneManager.ZoneAt(plant.Position) != null)
+				    if (plant.Growth >= plant.def.plant.harvestMinGrowth && 
+                    !plant.Map.designationManager.HasMapDesignationOn(plant) && 
+                    plant.Map.zoneManager.ZoneAt(plant.Position) != null && 
+                    !plant.Map.roofGrid.Roofed(plant.Position))
                     {
                         plant.Map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
                     }
