@@ -128,8 +128,9 @@ namespace SmartFarming
 			//Log.Message("Starting day is: " + startingDay.ToString());
 
 			//Run simulation
+			float tempOffset = map.gameConditionManager.AggregateTemperatureOffset();
 			Resimulate:
-			SimulateDay(ref simulatedGrowth, startingDay, numOfDays, zone);
+			SimulateDay(ref simulatedGrowth, startingDay, numOfDays, zone, tempOffset);
 			//Failsafe... if a map never freezes and a plant never grows for some reason.
 			if (numOfDays > 120){
 				Log.Warning("[Smart Farming] failed simulating " + plant.defName + " at zone " + zone.Position);
@@ -142,7 +143,7 @@ namespace SmartFarming
 			else zoneData.minHarvestDay = (numOfDays * 60000) + Find.TickManager.TicksAbs;
 		}
 
-		private void SimulateDay(ref int simulatedGrowth, int startingDay, int numOfDays, Zone_Growing zone)
+		private void SimulateDay(ref int simulatedGrowth, int startingDay, int numOfDays, Zone_Growing zone, float tempOffset)
 		{
 			ZoneData zoneData = growZoneRegistry[zone.ID];
 
@@ -167,8 +168,8 @@ namespace SmartFarming
 			int growthToday =  (int)(ticksOfLight * PlantUtility.GrowthRateFactorFor_Fertility(zone.GetPlantDefToGrow(), useAverageFertility ? zoneData.fertilityAverage : zoneData.fertilityLow));
 
 			//Temperature
-			float low = Find.World.tileTemperatures.OutdoorTemperatureAt(map.Tile, (int)(numOfDays * 60000) + 15000);
-			float high = Find.World.tileTemperatures.OutdoorTemperatureAt(map.Tile, (int)(numOfDays * 60000) + 47500);
+			float low = Find.World.tileTemperatures.OutdoorTemperatureAt(map.Tile, (int)(numOfDays * 60000) + 15000) + tempOffset;
+			float high = Find.World.tileTemperatures.OutdoorTemperatureAt(map.Tile, (int)(numOfDays * 60000) + 47500) + tempOffset;
 			float average = (low + high) / 2f;
 			growthToday = (int)(growthToday * PlantUtility.GrowthRateFactorFor_Temperature(average));
 			
