@@ -114,10 +114,16 @@ namespace SmartFarming
 
 		private void CalculateDaysToHarvest(Zone_Growing zone, bool lateSeasonAdjust = false)
 		{
+			ZoneData zoneData = growZoneRegistry[zone.ID];
+
+			//Check for toxic fallout first
+			if (map.gameConditionManager.ConditionIsActive(GameConditionDefOf.ToxicFallout) && !map.roofGrid.Roofed(zone.Position)){
+				zoneData.minHarvestDay = -1;
+				return;
+			}
+
 			ThingDef plant = zone.GetPlantDefToGrow();
 			if (plant == null) return;
-
-			ZoneData zoneData = growZoneRegistry[zone.ID];
 
 			//Prepare variables
 			int growthNeeded = (int)(plant.plant.growDays * plant.plant.harvestMinGrowth * 60000f * 1.1f * (1f - (zoneData.averageGrowth / plant.plant.harvestMinGrowth)));
@@ -130,7 +136,7 @@ namespace SmartFarming
 			//Run simulation
 			float tempOffset = map.gameConditionManager.AggregateTemperatureOffset();
 			Resimulate:
-			SimulateDay(ref simulatedGrowth, startingDay, numOfDays, zone, tempOffset);
+			SimulateDay(ref simulatedGrowth, startingDay, numOfDays, zone, tempOffset, plant.plant.dieIfLeafless);
 			//Failsafe... if a map never freezes and a plant never grows for some reason.
 			if (numOfDays > 120){
 				Log.Warning("[Smart Farming] failed simulating " + plant.defName + " at zone " + zone.Position);
@@ -143,7 +149,7 @@ namespace SmartFarming
 			else zoneData.minHarvestDay = (numOfDays * 60000) + Find.TickManager.TicksAbs;
 		}
 
-		private void SimulateDay(ref int simulatedGrowth, int startingDay, int numOfDays, Zone_Growing zone, float tempOffset)
+		private void SimulateDay(ref int simulatedGrowth, int startingDay, int numOfDays, Zone_Growing zone, float tempOffset, bool sensitiveToCold)
 		{
 			ZoneData zoneData = growZoneRegistry[zone.ID];
 
@@ -174,7 +180,7 @@ namespace SmartFarming
 			growthToday = (int)(growthToday * PlantUtility.GrowthRateFactorFor_Temperature(average));
 			
 			//Results
-			simulatedGrowth = (low < minTempAllowed) ? -1 : simulatedGrowth + growthToday; //Has froze?
+			simulatedGrowth = (sensitiveToCold && low < minTempAllowed) ? -1 : simulatedGrowth + growthToday; //Has froze?
 
 			//Debug
 			/*

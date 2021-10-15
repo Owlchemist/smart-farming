@@ -4,6 +4,7 @@ using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
 using System;
+using UnityEngine;
 using static SmartFarming.Mod_SmartFarming;
 using static SmartFarming.ModSettings_SmartFarming;
 using static SmartFarming.ZoneData;
@@ -31,7 +32,7 @@ namespace SmartFarming
                 string label = "SmartFarming" + zoneData.sowMode.ToString();
                 string desc = "SmartFarming" + zoneData.sowMode.ToString() + "Desc";
 
-                if (Find.Selector.NumSelected == 1)
+                if (CheckIfZonesEqual(comp))
                 {
                     yield return new Command_Action()
                     {
@@ -56,6 +57,37 @@ namespace SmartFarming
                 };
             }
         }
+
+        //4AM code looks junky, need to refactor this later...
+        static bool CheckIfZonesEqual(MapComponent_SmartFarming comp)
+        {
+            //Get list of zones selected
+            var selectedZones = Find.Selector.selected.Where(x => x.GetType() == typeof(Zone_Growing))?.Cast<Zone_Growing>().Select(y => y.ID);
+            
+            //Go through the IDs
+            bool result = true;
+            int i = 0;
+            Texture2D lastIcon = null;
+            foreach (var zoneID in selectedZones)
+            {
+                ++i;
+                ZoneData tmp;
+                if (comp.growZoneRegistry.TryGetValue(zoneID, out tmp))
+                {
+                    if (i == 1)
+                    {
+                        lastIcon = tmp.iconCache;
+                        continue;
+                    }
+                    else if (tmp.iconCache != lastIcon)
+                    {
+                        result = false;
+                        break;
+                    }
+                }
+            }
+            return result;
+        }
     }
 
     //This controls whether or not pawns will skip sow jobs based on the seasonable allowance
@@ -71,7 +103,7 @@ namespace SmartFarming
 
                 var zoneData = compCache[map].growZoneRegistry[zone.ID];
 
-                if (zoneData.sowMode == SowMode.Force || zone.GetPlantDefToGrow().plant.IsTree) __result = true;
+                if (zoneData.sowMode == SowMode.Force || (zone.GetPlantDefToGrow().plant.IsTree && !zone.GetPlantDefToGrow().plant.dieIfLeafless)) __result = true;
                 else if (zoneData.sowMode == SowMode.Smart && __result && zoneData.minHarvestDay == -1) __result = false;
             }
         }
