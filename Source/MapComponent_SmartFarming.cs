@@ -112,7 +112,7 @@ namespace SmartFarming
 			}
 		}
 
-		private void CalculateDaysToHarvest(Zone_Growing zone, bool lateSeasonAdjust = false)
+		private void CalculateDaysToHarvest(Zone_Growing zone, bool forSowing = false)
 		{
 			ZoneData zoneData = growZoneRegistry[zone.ID];
 
@@ -126,7 +126,8 @@ namespace SmartFarming
 			if (plant == null) return;
 
 			//Prepare variables
-			int growthNeeded = (int)(plant.plant.growDays * plant.plant.harvestMinGrowth * 60000f * 1.1f * (1f - (zoneData.averageGrowth / plant.plant.harvestMinGrowth)));
+			
+			int growthNeeded = (int)(plant.plant.growDays * plant.plant.harvestMinGrowth * 60000f * 1.1f * (1f - (forSowing ? 0f : zoneData.averageGrowth / plant.plant.harvestMinGrowth)));
 			//Log.Message(plant.plant.growDays.ToString() + " * " + plant.plant.harvestMinGrowth.ToString() + " * 60000 * 1.1 * " + (1f - (zoneData.averageGrowth / plant.plant.harvestMinGrowth)).ToString() + " = " + growthNeeded.ToString());
 			int simulatedGrowth = 0;
 			int numOfDays = 0;
@@ -145,8 +146,17 @@ namespace SmartFarming
 			if (simulatedGrowth < growthNeeded && simulatedGrowth != -1) {numOfDays++; goto Resimulate;}
 
 			//Use results
-			if (simulatedGrowth == -1) zoneData.minHarvestDay = -1;
-			else zoneData.minHarvestDay = (numOfDays * 60000) + Find.TickManager.TicksAbs;
+			if (forSowing)
+			{
+				if (simulatedGrowth == -1) zoneData.minHarvestDayForNewlySown = -1;
+				else zoneData.minHarvestDayForNewlySown = (numOfDays * 60000) + Find.TickManager.TicksAbs;
+			}
+			else
+			{
+				if (simulatedGrowth == -1) zoneData.minHarvestDay = -1;
+				else zoneData.minHarvestDay = (numOfDays * 60000) + Find.TickManager.TicksAbs;
+			}
+			
 		}
 
 		private void SimulateDay(ref int simulatedGrowth, int startingDay, int numOfDays, Zone_Growing zone, float tempOffset, bool sensitiveToCold)
@@ -251,6 +261,7 @@ namespace SmartFarming
 		{
 			CalculateAverages(zone);
 			CalculateDaysToHarvest(zone);
+			CalculateDaysToHarvest(zone, true);
 			CalculateYield(zone);
 			CalculateTotalHungerRate();
 		}

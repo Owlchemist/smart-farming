@@ -32,7 +32,7 @@ namespace SmartFarming
                 string label = "SmartFarming" + zoneData.sowMode.ToString();
                 string desc = "SmartFarming" + zoneData.sowMode.ToString() + "Desc";
 
-                if (CheckIfZonesEqual(comp))
+                if (Find.Selector.NumSelected == 1 || CheckIfZonesEqual(comp))
                 {
                     yield return new Command_Action()
                     {
@@ -65,7 +65,6 @@ namespace SmartFarming
             var selectedZones = Find.Selector.selected.Where(x => x.GetType() == typeof(Zone_Growing))?.Cast<Zone_Growing>().Select(y => y.ID);
             
             //Go through the IDs
-            bool result = true;
             int i = 0;
             Texture2D lastIcon = null;
             foreach (var zoneID in selectedZones)
@@ -81,12 +80,11 @@ namespace SmartFarming
                     }
                     else if (tmp.iconCache != lastIcon)
                     {
-                        result = false;
-                        break;
+                        return false;
                     }
                 }
             }
-            return result;
+            return true;
         }
     }
 
@@ -104,7 +102,7 @@ namespace SmartFarming
                 var zoneData = compCache[map].growZoneRegistry[zone.ID];
 
                 if (zoneData.sowMode == SowMode.Force || (zone.GetPlantDefToGrow().plant.IsTree && !zone.GetPlantDefToGrow().plant.dieIfLeafless)) __result = true;
-                else if (zoneData.sowMode == SowMode.Smart && __result && zoneData.minHarvestDay == -1) __result = false;
+                else if (zoneData.sowMode == SowMode.Smart && __result && zoneData.minHarvestDayForNewlySown == -1) __result = false;
             }
         }
     }

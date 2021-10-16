@@ -23,6 +23,7 @@ namespace SmartFarming
 			Scribe_Values.Look<float>(ref fertilityAverage, "averageFertility", 1f, false);
 			Scribe_Values.Look<float>(ref averageGrowth, "averageGrowth", 0f, false);
 			Scribe_Values.Look<long>(ref minHarvestDay, "minHarvestDay", 0, false);
+			Scribe_Values.Look<long>(ref minHarvestDayForNewlySown, "minHarvestDayForNewlySown", 0, false);
 			Scribe_Values.Look<float>(ref nutritionYield, "nutritionYield", 0, false);
 			Scribe_Values.Look<bool>(ref noPettyJobs, "pettyJobs", false, false);
 
@@ -48,6 +49,7 @@ namespace SmartFarming
 		public float fertilityLow;
 		public float averageGrowth;
 		public long minHarvestDay;
+		public long minHarvestDayForNewlySown;
 		public bool noPettyJobs;
 		public float nutritionYield;
 		public Texture2D iconCache;
