@@ -22,24 +22,24 @@ namespace SmartFarming
 			var buffer = processedFoodFactor.ToString();
 			Listing_Standard options = new Listing_Standard();
 			options.Begin(inRect);
-			options.CheckboxLabeled("SmartFarm_AutoCutBlighted".Translate(), ref autoCutBlighted, "SmartFarm_AutoCutBlightedDesc".Translate());
-			options.CheckboxLabeled("SmartFarm_AutoCutDying".Translate(), ref autoCutDying, "SmartFarm_AutoCutDyingDesc".Translate());
+			options.CheckboxLabeled("SmartFarming.Settings.AutoCutBlighted".Translate(), ref autoCutBlighted, "SmartFarming.Settings.AutoCutBlighted.Desc".Translate());
+			options.CheckboxLabeled("SmartFarming.Settings.AutoCutDying".Translate(), ref autoCutDying, "SmartFarming.Settings.AutoCutDying.Desc".Translate());
 			options.Gap();
-			options.Label("SmartFarm_PettyJobsSlider".Translate("20%", "1%", "100%") + pettyJobs.ToStringPercent(), -1f, "SmartFarm_PettyJobs".Translate());
+			options.Label("SmartFarming.Settings.PettyJobsSlider".Translate("20%", "1%", "100%") + pettyJobs.ToStringPercent(), -1f, "SmartFarming.Settings.PettyJobs".Translate());
 			pettyJobs = options.Slider(pettyJobs, 0.01f, 1f);
 			
 			options.Gap();
-			options.Label("SmartFarm_SmartSowLabel".Translate());
+			options.Label("SmartFarming.Settings.SmartSowLabel".Translate());
 			options.GapLine(); //======================================
-			options.CheckboxLabeled("SmartFarm_UseAverageFertility".Translate(), ref useAverageFertility, "SmartFarm_UseAverageFertilityDesc".Translate());
+			options.CheckboxLabeled("SmartFarming.Settings.UseAverageFertility".Translate(), ref useAverageFertility, "SmartFarming.Settings.UseAverageFertility.Desc".Translate());
 			options.Gap();
-			options.Label("SmartFarm_MinTempSlider".Translate("-4C", "-10C", "5C") + Math.Round(minTempAllowed, 2), -1f, "SmartFarm_MinTemp".Translate());
+			options.Label("SmartFarming.Settings.MinTempSlider".Translate("-4C", "-10C", "5C") + Math.Round(minTempAllowed, 2), -1f, "SmartFarming.Settings.MinTemp".Translate());
 			minTempAllowed = options.Slider(minTempAllowed, -10f, 5f);
 			options.Gap();
 			options.GapLine(); //======================================
-			options.Label("SmartFarm_ProcessedFoodLabel".Translate());
+			options.Label("SmartFarming.Settings.ProcessedFoodLabel".Translate());
 			options.TextFieldNumeric<float>(ref processedFoodFactor, ref buffer, 0f, 99f);
-			options.Label("SmartFarm_ProcessedFoodDesc".Translate());
+			options.Label("SmartFarming.Settings.ProcessedFood.Desc".Translate());
 			options.End();
 			base.DoSettingsWindowContents(inRect);
 		}

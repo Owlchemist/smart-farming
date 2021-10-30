@@ -2,7 +2,6 @@ using HarmonyLib;
 using Verse;
 using RimWorld;
 using static SmartFarming.Mod_SmartFarming;
-using static SmartFarming.MapComponent_SmartFarming;
 
 namespace SmartFarming
 {   
@@ -17,7 +16,7 @@ namespace SmartFarming
 				if (!growZoneRegistry.ContainsKey(__instance.ID)) growZoneRegistry.Add(__instance.ID, new ZoneData());
 
                 //Run this on the next tick because RimWorld handles zone registration before it lets map components initialize
-				LongEventHandler.QueueLongEvent(() => compCache[__instance.Map].CalculateAll((Zone_Growing)__instance), "CalculateAll", false, null);
+				LongEventHandler.QueueLongEvent(() => compCache[__instance.Map].CalculateAll((Zone_Growing)__instance), null, false, null, false);
 			}
         }
     }

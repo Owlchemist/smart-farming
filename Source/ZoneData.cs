@@ -15,11 +15,13 @@ namespace SmartFarming
 			this.noPettyJobs = false;
 			this.nutritionYield = 0f;
 			this.iconCache = sowIconOn;
+			this.priority = Priority.Normal;
 		}
 
 		public void ExposeData()
 		{
 			Scribe_Values.Look<SowMode>(ref sowMode, "sowMode", 0, false);
+			Scribe_Values.Look<Priority>(ref priority, "priority", Priority.Normal, false);
 			Scribe_Values.Look<float>(ref fertilityAverage, "averageFertility", 1f, false);
 			Scribe_Values.Look<float>(ref averageGrowth, "averageGrowth", 0f, false);
 			Scribe_Values.Look<long>(ref minHarvestDay, "minHarvestDay", 0, false);
@@ -43,15 +45,11 @@ namespace SmartFarming
 					break;
 			}
 		}
-		public SowMode sowMode;
-		public enum SowMode { On, Off, Smart, Force }
-		public float fertilityAverage;
-		public float fertilityLow;
-		public float averageGrowth;
-		public long minHarvestDay;
-		public long minHarvestDayForNewlySown;
-		public bool noPettyJobs;
-		public float nutritionYield;
+		public Priority priority; public enum Priority { Low = 1, Normal, Preferred, Important, Critical}	
+		public SowMode sowMode; public enum SowMode { On, Off, Smart, Force }
 		public Texture2D iconCache;
+		public float fertilityAverage, fertilityLow, averageGrowth, nutritionYield;
+		public long minHarvestDay, minHarvestDayForNewlySown;
+		public bool noPettyJobs;
 	}
 }

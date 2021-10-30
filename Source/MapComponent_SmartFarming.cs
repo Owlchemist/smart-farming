@@ -39,6 +39,16 @@ namespace SmartFarming
 			});
 		}
 
+		public void SwitchPriority(Zone_Growing zone)
+		{
+			SoundDefOf.Click.PlayOneShotOnCamera(null);
+			
+			var zoneData = growZoneRegistry[zone.ID];
+			var length = Enum.GetValues(typeof(Priority)).Length;
+
+			if (zoneData.priority != Priority.Critical) ++zoneData.priority;
+			else zoneData.priority = Priority.Low;
+		}
 		public void SwitchSowMode(Zone_Growing zone)
 		{
 			SoundDefOf.Click.PlayOneShotOnCamera(null);
@@ -137,7 +147,7 @@ namespace SmartFarming
 			//Run simulation
 			float tempOffset = map.gameConditionManager.AggregateTemperatureOffset();
 			Resimulate:
-			SimulateDay(ref simulatedGrowth, startingDay, numOfDays, zone, tempOffset, plant.plant.dieIfLeafless);
+			SimulateDay(numOfDays, ref simulatedGrowth, zone, tempOffset, startingDay, plant.plant.dieIfLeafless);
 			//Failsafe... if a map never freezes and a plant never grows for some reason.
 			if (numOfDays > 120){
 				Log.Warning("[Smart Farming] failed simulating " + plant.defName + " at zone " + zone.Position);
@@ -159,11 +169,11 @@ namespace SmartFarming
 			
 		}
 
-		private void SimulateDay(ref int simulatedGrowth, int startingDay, int numOfDays, Zone_Growing zone, float tempOffset, bool sensitiveToCold)
+		private void SimulateDay(int numOfDays, ref int simulatedGrowth, Zone_Growing zone, float tempOffset, int startingDay, bool sensitiveToCold)
 		{
 			ZoneData zoneData = growZoneRegistry[zone.ID];
 
-			int ticksOfLight = 32500;
+			int ticksOfLight = 32500; // 32500 = 60,000 ticks * .54167, only the hours this plant is "awake"
 			if (numOfDays == 0)
 			{
 				int hour = GenDate.HourOfDay(Find.TickManager.TicksGame ,Find.WorldGrid.LongLatOf(map.Tile).x);
@@ -179,8 +189,6 @@ namespace SmartFarming
 
 			//Prepare date
 			numOfDays += startingDay;
-
-			// 32500 = 60,000 ticks * .54167, only the hours this plant is "awake"
 			int growthToday =  (int)(ticksOfLight * PlantUtility.GrowthRateFactorFor_Fertility(zone.GetPlantDefToGrow(), useAverageFertility ? zoneData.fertilityAverage : zoneData.fertilityLow));
 
 			//Temperature
@@ -266,7 +274,7 @@ namespace SmartFarming
 			CalculateTotalHungerRate();
 		}
 
-		private int ticks = 0;
+		int ticks = 0;
 		public Dictionary<int, ZoneData> growZoneRegistry = new Dictionary<int, ZoneData>();
 		public float totalHungerRate;
 	}
