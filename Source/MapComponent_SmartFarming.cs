@@ -249,28 +249,36 @@ namespace SmartFarming
 			}
 		}
 
-		public void ProcessZones()
+		public void ProcessZones(bool cacheNow = false)
 		{
+			tempOffsetCache = map.gameConditionManager.AggregateTemperatureOffset();
+			currentDay = GenDate.DayOfYear(Find.TickManager.TicksAbs, Find.WorldGrid.LongLatOf(map.Tile).x);
+
 			map.zoneManager.AllZones.ForEach
 			(x => 
 				{
 					Zone_Growing zone = x as Zone_Growing;
-					if (zone != null) CalculateAll(zone);
+					if (zone != null) CalculateAll(zone, false);
 				}
 			);
 		}
 
-		public void CalculateAll(Zone_Growing zone)
+		public void CalculateAll(Zone_Growing zone, bool cacheNow = true)
 		{
-			ZoneData zoneData = growZoneRegistry[zone.ID];
-			tempOffsetCache = map.gameConditionManager.AggregateTemperatureOffset();
-			currentDay = GenDate.DayOfYear(Find.TickManager.TicksAbs, Find.WorldGrid.LongLatOf(map.Tile).x);
-			
-			CalculateAverages(zone, zoneData);
-			zoneData.minHarvestDay = CalculateDaysToHarvest(zone, zoneData, false);
-			zoneData.minHarvestDayForNewlySown = CalculateDaysToHarvest(zone, zoneData, true);
-			CalculateYield(zone);
-			CalculateTotalHungerRate();
+			if (growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData))
+			{
+				if (cacheNow)
+				{
+					tempOffsetCache = map.gameConditionManager.AggregateTemperatureOffset();
+					currentDay = GenDate.DayOfYear(Find.TickManager.TicksAbs, Find.WorldGrid.LongLatOf(map.Tile).x);
+				}
+
+				CalculateAverages(zone, zoneData);
+				zoneData.minHarvestDay = CalculateDaysToHarvest(zone, zoneData, false);
+				zoneData.minHarvestDayForNewlySown = CalculateDaysToHarvest(zone, zoneData, true);
+				CalculateYield(zone);
+				CalculateTotalHungerRate();
+			}
 		}
 
 		public void HarvestNow(Zone_Growing zone)
