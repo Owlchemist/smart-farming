@@ -11,7 +11,7 @@ using static SmartFarming.ZoneData;
 
 namespace SmartFarming
 {
-    //This replaces the vanilla sow button with our own.
+    //This handles the zone gizmos
     [HarmonyPatch (typeof(Zone_Growing), nameof(Zone_Growing.GetGizmos))]
     static class Patch_GetGizmos
     {
@@ -19,12 +19,13 @@ namespace SmartFarming
         {
             foreach (var value in values)
             {
-                Command command = value as Command;
-                if (command?.hotKey == KeyBindingDefOf.Command_ItemForbid) continue;
+                //This will exclude the vanilla sow gizmo, since we're replacing it
+                if (((Command)value)?.hotKey == KeyBindingDefOf.Command_ItemForbid) continue;
+                //Pass along all othe gizmos...
                 yield return value;
             }
 
-            var comp = compCache[__instance.Map];
+            MapComponent_SmartFarming comp = compCache[__instance.Map];
             if (comp != null)
             {
                 ZoneData zoneData = comp.growZoneRegistry[__instance.ID];
@@ -68,6 +69,24 @@ namespace SmartFarming
                         zoneData.noPettyJobs = !zoneData.noPettyJobs;
                     }
                 };
+
+                ThingDef crop = __instance.GetPlantDefToGrow();
+                Map map = __instance.Map;
+                foreach (var cell in __instance.cells)
+                {
+                    Plant plant = map.thingGrid.ThingAt<Plant>(cell);
+                    if (plant?.def == crop && crop.plant.harvestedThingDef != null && plant.Growth >= crop.plant.harvestMinGrowth)
+                    {
+                        yield return new Command_Action()
+                        {
+                            defaultLabel = "SmartFarming.Icon.HarvestNow".Translate(),
+                            defaultDesc = "SmartFarming.Icon.HarvestNow.Desc".Translate(),
+                            icon = ResourceBank.iconHarvest,
+                            action = () => comp.HarvestNow(__instance)
+                        };
+                        break;
+                    }
+                }
             }
         }
 
@@ -188,23 +207,27 @@ namespace SmartFarming
             if (autoCutDying && __instance.def.plant.dieIfLeafless)
             {
                 //This method seem to call before the comps are fully loaded, so we need to check
-                var comp = compCache.GetValueSafe(__instance.Map);
-                if (comp == null)  return;
+                MapComponent_SmartFarming comp = compCache.GetValueSafe(__instance.Map);
+                if (comp == null) return;
 
+                //Is this plant part of a zone?
                 Zone_Growing zone = __instance.Map.zoneManager.ZoneAt(__instance.Position) as Zone_Growing;
                 if (zone == null) return;
 
-                var plants = __instance.Map.listerThings.ThingsOfDef(zone.GetPlantDefToGrow())?.Cast<Plant>();
-                foreach (var plant in plants)
-                {
-				    if (plant.Growth >= plant.def.plant.harvestMinGrowth && 
-                    !plant.Map.designationManager.HasMapDesignationOn(plant) && 
-                    plant.Map.zoneManager.ZoneAt(plant.Position) != null && 
-                    !plant.Map.roofGrid.Roofed(plant.Position))
+                __instance.Map.listerThings.ThingsOfDef(zone.GetPlantDefToGrow()).ForEach
+                (x =>
                     {
-                        plant.Map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
+                        Plant plant = x as Plant;
+                        if (plant?.Growth >= plant.def.plant.harvestMinGrowth && //Ready for harvest?
+                        plant.def.plant.harvestedThingDef != null && //Can be harvested?
+                        !plant.Map.designationManager.HasMapDesignationOn(plant) &&  //Is not already designatd?
+                        plant.Map.zoneManager.ZoneAt(plant.Position) != null && //Is part of a zone?
+                        !plant.Map.roofGrid.Roofed(plant.Position)) //Is not roofed?
+                        {
+                            plant.Map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
+                        }
                     }
-                }
+                );
             }
 		}
 	}

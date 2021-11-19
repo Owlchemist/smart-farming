@@ -5,7 +5,7 @@ using Verse;
 using UnityEngine;
 using static SmartFarming.Mod_SmartFarming;
 
-namespace GrowingZonePriorities
+namespace SmartFarming
 {
 	//This tells the workgiver that growing is a priority-enabled job
 	[HarmonyPatch(typeof(WorkGiver_Scanner), nameof(WorkGiver_Scanner.Prioritized), MethodType.Getter)]

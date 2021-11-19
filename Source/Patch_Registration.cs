@@ -4,7 +4,8 @@ using RimWorld;
 using static SmartFarming.Mod_SmartFarming;
 
 namespace SmartFarming
-{   
+{
+    //Zone spawn
     [HarmonyPatch (typeof(Zone), nameof(Zone.PostRegister))]
     static class Patch_PostRegister
     {
@@ -12,27 +13,30 @@ namespace SmartFarming
         {
 			if (__instance is Zone_Growing)
 			{
-				var growZoneRegistry = compCache[__instance.Map].growZoneRegistry;
-				if (!growZoneRegistry.ContainsKey(__instance.ID)) growZoneRegistry.Add(__instance.ID, new ZoneData());
-
+                var growZoneRegistry = compCache[__instance.Map].growZoneRegistry;
+			    if (!growZoneRegistry.ContainsKey(__instance.ID)) growZoneRegistry.Add(__instance.ID, new ZoneData());
+                compCache[__instance.Map].CalculateAll((Zone_Growing)__instance);
                 //Run this on the next tick because RimWorld handles zone registration before it lets map components initialize
-				LongEventHandler.QueueLongEvent(() => compCache[__instance.Map].CalculateAll((Zone_Growing)__instance), null, false, null, false);
+			    //LongEventHandler.QueueLongEvent(() => compCache[__instance.Map].CalculateAll((Zone_Growing)__instance), null, false, null, false);
 			}
         }
     }
-    [HarmonyPatch (typeof(Zone), nameof(Zone.PostDeregister))]
-    static class PostDeregister
+
+    //Zone delete
+    [HarmonyPatch (typeof(Zone), nameof(Zone.Deregister))]
+    static class Patch_Deregister
     {
         static void Prefix(Zone __instance)
         {
 			if (__instance is Zone_Growing)
 			{
 				var growZoneRegistry = compCache[__instance.Map].growZoneRegistry;
-				if (!growZoneRegistry.ContainsKey(__instance.ID)) growZoneRegistry.Remove(__instance.ID);
+				if (growZoneRegistry.ContainsKey(__instance.ID)) growZoneRegistry.Remove(__instance.ID);
 			}
         }
     }
 
+    //Change plant type
 	[HarmonyPatch (typeof(Zone_Growing), nameof(Zone_Growing.SetPlantDefToGrow))]
     static class Patch_SetPlantDefToGrow
     {
@@ -42,6 +46,7 @@ namespace SmartFarming
         }
     }
 
+    //Zone expand
 	[HarmonyPatch (typeof(Zone_Growing), nameof(Zone_Growing.AddCell))]
     static class Patch_AddCell
     {
@@ -50,12 +55,24 @@ namespace SmartFarming
 			compCache[__instance.Map].CalculateAll(__instance);
         }
     }
+
+    //Zone shrink
 	[HarmonyPatch (typeof(Zone), nameof(Zone.RemoveCell))]
     static class Patch_RemoveCell
     {
         static void Postfix(Zone __instance)
         {
-			if (__instance is Zone_Growing) compCache[__instance.Map].CalculateAll((Zone_Growing)__instance);
+			if (__instance is Zone_Growing && __instance.cells.Count > 0) compCache[__instance.Map].CalculateAll((Zone_Growing)__instance);
+        }
+    }
+
+    //Flush the cache on reload
+    [HarmonyPatch(typeof(Game), nameof(Game.LoadGame))]
+	public class Patch_LoadGame
+	{
+        static void Prefix()
+        {
+            compCache.Clear();
         }
     }
 }

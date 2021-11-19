@@ -8,14 +8,14 @@ namespace SmartFarming
 	{
 		public ZoneData()
 		{
-			this.sowMode = SowMode.On;
-			this.fertilityAverage = 1f;
-			this.averageGrowth = 0f;
-			this.minHarvestDay = 0;
-			this.noPettyJobs = false;
-			this.nutritionYield = 0f;
-			this.iconCache = sowIconOn;
-			this.priority = Priority.Normal;
+			sowMode = SowMode.On;
+			fertilityAverage = 1f;
+			averageGrowth = 0f;
+			minHarvestDay = 0;
+			noPettyJobs = false;
+			nutritionYield = 0f;
+			iconCache = sowIconOn;
+			priority = Priority.Normal;
 		}
 
 		public void ExposeData()

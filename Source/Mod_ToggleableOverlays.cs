@@ -40,6 +40,7 @@ namespace SmartFarming
 			options.Label("SmartFarming.Settings.ProcessedFoodLabel".Translate());
 			options.TextFieldNumeric<float>(ref processedFoodFactor, ref buffer, 0f, 99f);
 			options.Label("SmartFarming.Settings.ProcessedFood.Desc".Translate());
+			if (Prefs.DevMode) options.CheckboxLabeled("DevMode: Enable logging", ref logging, null);
 			options.End();
 			base.DoSettingsWindowContents(inRect);
 		}
@@ -52,15 +53,7 @@ namespace SmartFarming
 		public override void WriteSettings()
 		{
 			base.WriteSettings();
-			if (Find.CurrentMap != null)
-			{
-				foreach (var map in Find.Maps)
-				{
-					var comp = map.GetComponent<MapComponent_SmartFarming>();
-					if (comp == null) continue;
-					comp.ProcessZones();
-				}
-			}
+			if (Current.ProgramState == ProgramState.Playing) Find.Maps.ForEach(x => x.GetComponent<MapComponent_SmartFarming>()?.ProcessZones());
 		}
 	}
 
@@ -77,11 +70,7 @@ namespace SmartFarming
 
 			base.ExposeData();
 		}
-		public static bool useAverageFertility = false;
-		public static bool autoCutBlighted = true;
-		public static bool autoCutDying = true;
-		public static float processedFoodFactor = 1.8f;
-		public static float pettyJobs = 0.2f;
-		public static float minTempAllowed = -4;
+		public static bool useAverageFertility, autoCutBlighted, autoCutDying, logging;
+		public static float processedFoodFactor, pettyJobs, minTempAllowed;
 	}
 }
