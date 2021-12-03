@@ -30,23 +30,24 @@ namespace SmartFarming
 			if (growZoneRegistry == null) growZoneRegistry = new Dictionary<int, ZoneData>();
 
 			//Find any missing zones (for when the mod is installed for an existing save)
-			map.zoneManager.AllZones.ForEach(x => {
-				if (x.GetType() == typeof(Zone_Growing) && !growZoneRegistry.ContainsKey(x.ID))
+			foreach (Zone zone in map.zoneManager.AllZones)
+			{
+				Zone_Growing growZone = zone as Zone_Growing;
+				if (growZone != null && !growZoneRegistry.ContainsKey(growZone.ID))
 				{
-					growZoneRegistry.Add(x.ID,new ZoneData());
-					CalculateAll((Zone_Growing)x);
+					growZoneRegistry.Add(growZone.ID, new ZoneData());
+					CalculateAll(growZone);
 				}
-			});
+			}
 
 			//Validate data
 			var allValidZones = map.zoneManager.AllZones.Where(x => x.GetType() == typeof(Zone_Growing)).Select(y => y.ID);
-			var workingList = growZoneRegistry.ToList();
-			foreach (var registration in workingList)
+			foreach (int zoneID in growZoneRegistry.Keys.ToList())
 			{
-				if (!allValidZones.Contains(registration.Key))
+				if (!allValidZones.Contains(zoneID))
 				{
-					if (Prefs.DevMode) Log.Message("[Smart Farming] Removing invalid key # " + registration.Key);
-					growZoneRegistry.Remove(registration.Key);
+					if (Prefs.DevMode) Log.Message("[Smart Farming] Removing invalid key # " + zoneID);
+					growZoneRegistry.Remove(zoneID);
 				}
 			}
 		}
@@ -232,8 +233,7 @@ namespace SmartFarming
 		public void CalculateTotalHungerRate()
 		{
 			totalHungerRate = 0; //Reset
-			List<Pawn> pawns = map.mapPawns.FreeColonistsAndPrisoners;
-			foreach (Pawn pawn in pawns)
+			foreach (Pawn pawn in map.mapPawns.FreeColonistsAndPrisoners)
 			{
 				totalHungerRate += Need_Food.BaseHungerRateFactor(pawn.ageTracker.CurLifeStage, pawn.def) * pawn.health.hediffSet.HungerRateFactor * 
 				((pawn.story == null || pawn.story.traits == null) ? 1f : pawn.story.traits.HungerRateFactor) * pawn.GetStatValue(StatDefOf.HungerRateMultiplier, true);
@@ -253,14 +253,13 @@ namespace SmartFarming
 		{
 			tempOffsetCache = map.gameConditionManager.AggregateTemperatureOffset();
 			currentDay = GenDate.DayOfYear(Find.TickManager.TicksAbs, Find.WorldGrid.LongLatOf(map.Tile).x);
+			CalculateTotalHungerRate();
 
-			map.zoneManager.AllZones.ForEach
-			(x => 
-				{
-					Zone_Growing zone = x as Zone_Growing;
-					if (zone != null) CalculateAll(zone, false);
-				}
-			);
+			foreach (Zone zone in map.zoneManager.AllZones)
+			{
+				Zone_Growing growZone = zone as Zone_Growing;
+				if (growZone != null) CalculateAll(growZone, false);
+			}
 		}
 
 		public void CalculateAll(Zone_Growing zone, bool cacheNow = true)
@@ -277,14 +276,13 @@ namespace SmartFarming
 				zoneData.minHarvestDay = CalculateDaysToHarvest(zone, zoneData, false);
 				zoneData.minHarvestDayForNewlySown = CalculateDaysToHarvest(zone, zoneData, true);
 				CalculateYield(zone);
-				CalculateTotalHungerRate();
 			}
 		}
 
 		public void HarvestNow(Zone_Growing zone)
 		{
 			ThingDef crop = zone.GetPlantDefToGrow();
-			foreach (var cell in zone.cells)
+			foreach (IntVec3 cell in zone.cells)
 			{
 				Plant plant = zone.Map?.thingGrid.ThingAt<Plant>(cell);
 				if (plant?.def == crop && plant.Growth >= crop.plant.harvestMinGrowth) plant.Map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));

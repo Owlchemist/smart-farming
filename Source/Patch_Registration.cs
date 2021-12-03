@@ -15,9 +15,6 @@ namespace SmartFarming
 			{
                 var growZoneRegistry = compCache[__instance.Map].growZoneRegistry;
 			    if (!growZoneRegistry.ContainsKey(__instance.ID)) growZoneRegistry.Add(__instance.ID, new ZoneData());
-                compCache[__instance.Map].CalculateAll((Zone_Growing)__instance);
-                //Run this on the next tick because RimWorld handles zone registration before it lets map components initialize
-			    //LongEventHandler.QueueLongEvent(() => compCache[__instance.Map].CalculateAll((Zone_Growing)__instance), null, false, null, false);
 			}
         }
     }
