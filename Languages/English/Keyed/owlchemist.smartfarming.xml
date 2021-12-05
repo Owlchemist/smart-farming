@@ -21,6 +21,9 @@
 	<SmartFarming.Icon.NoPettyJobs>No petty jobs</SmartFarming.Icon.NoPettyJobs>
 	<SmartFarming.Icon.NoPettyJobs.Desc>Pawns will not sow new plants to this zone unless there is enough work to do, configured in the settings.</SmartFarming.Icon.NoPettyJobs.Desc>
 	
+	<SmartFarming.Settings.ColdSowing>Allow cold sowing</SmartFarming.Settings.ColdSowing>
+	<SmartFarming.Settings.ColdSowing.Desc>Normally, the game does not allow sowing when the ground is frozen, even if the type of plant being sown tolerates freezing temperatures. Disable this to maintain vanilla rules.</SmartFarming.Settings.ColdSowing.Desc>
+	
 	<SmartFarming.Settings.SmartSowLabel>Smart sow:</SmartFarming.Settings.SmartSowLabel>
 	<SmartFarming.Settings.ProcessedFoodLabel>Processed food factor:</SmartFarming.Settings.ProcessedFoodLabel>
 	

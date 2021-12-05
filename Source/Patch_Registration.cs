@@ -39,7 +39,7 @@ namespace SmartFarming
     {
         static void Postfix(Zone_Growing __instance)
         {
-			compCache[__instance.Map].CalculateAll(__instance);
+			compCache[__instance.Map].CalculateAll(__instance, true, true);
         }
     }
 

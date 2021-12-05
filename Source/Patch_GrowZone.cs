@@ -161,7 +161,7 @@ namespace SmartFarming
                 var zoneData = compCache.TryGetValue(map)?.growZoneRegistry[zone.ID];
                 if (zoneData == null) return;
 
-                if (zoneData.sowMode == SowMode.Force || (zone.GetPlantDefToGrow().plant.IsTree && !zone.GetPlantDefToGrow().plant.dieIfLeafless)) __result = true;
+                if (zoneData.sowMode == SowMode.Force || (coldSowing && zone.GetPlantDefToGrow().plant.IsTree && !zone.GetPlantDefToGrow().plant.dieIfLeafless)) __result = true;
                 else if (zoneData.sowMode == SowMode.Smart) __result = zoneData.minHarvestDayForNewlySown > -1;
             }
         }

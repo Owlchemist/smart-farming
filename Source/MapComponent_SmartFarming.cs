@@ -13,6 +13,12 @@ namespace SmartFarming
 {
     public class MapComponent_SmartFarming : MapComponent
 	{
+		int ticks, currentDay, tile, hour, sunrise, sunset;
+		public Dictionary<int, ZoneData> growZoneRegistry = new Dictionary<int, ZoneData>();
+		public float totalHungerRate, tempOffsetCache, latitude, longitudeTuning, baseTemperature, worldAverage, sunLow, sunHigh;
+		List<string> report = new List<string>();
+		RimWorld.Planet.World world;
+
 		public MapComponent_SmartFarming(Map map) : base(map){}
 
 		public override void ExposeData()
@@ -50,6 +56,20 @@ namespace SmartFarming
 					growZoneRegistry.Remove(zoneID);
 				}
 			}
+
+			//Cache some frequently used getters that don't change
+			latitude = Find.WorldGrid.LongLatOf(map.Tile).x;
+			world = Find.World;
+			tile = map.Tile;
+			worldAverage = Season.Winter.GetMiddleTwelfth(0f).GetBeginningYearPct();
+			float latitudeAb = System.Math.Abs(latitude);
+			int tmp = (int)(30000f * (latitudeAb > 90f ? 90f / latitudeAb : latitudeAb / 90f));
+			sunrise = 15000 + tmp;
+			sunset = 47500 + tmp;
+
+			//Cache longitude tuning
+			if (world.grid.LongLatOf(map.Tile).y >= 0f) longitudeTuning = TemperatureTuning.SeasonalTempVariationCurve.Evaluate(world.grid.DistanceFromEquatorNormalized(tile));
+			else longitudeTuning = -TemperatureTuning.SeasonalTempVariationCurve.Evaluate(world.grid.DistanceFromEquatorNormalized(tile));
 		}
 
 		public void SwitchPriority(Zone_Growing zone)
@@ -64,27 +84,29 @@ namespace SmartFarming
 		public void SwitchSowMode(Zone_Growing zone)
 		{
 			SoundDefOf.Click.PlayOneShotOnCamera(null);
-			switch (growZoneRegistry[zone.ID].sowMode)
+			ZoneData zoneData = growZoneRegistry[zone.ID];
+			zoneData.basicMode = false;
+			switch (zoneData.sowMode)
 			{
 				case SowMode.Force:
-					growZoneRegistry[zone.ID].sowMode = SowMode.Off;
-					growZoneRegistry[zone.ID].iconCache = sowIconOff;
+					zoneData.sowMode = SowMode.Off;
+					zoneData.iconCache = sowIconOff;
 					zone.allowSow = false;
 					break;
 				case SowMode.On:
-					growZoneRegistry[zone.ID].sowMode = SowMode.Smart;
-					growZoneRegistry[zone.ID].iconCache = sowIconSmart;
+					zoneData.sowMode = SowMode.Smart;
+					zoneData.iconCache = sowIconSmart;
 					CalculateAll(zone);
 					zone.allowSow = true;
 					break;
 				case SowMode.Smart:
-					growZoneRegistry[zone.ID].sowMode = SowMode.Force;
-					growZoneRegistry[zone.ID].iconCache = sowIconForce;
+					zoneData.sowMode = SowMode.Force;
+					zoneData.iconCache = sowIconForce;
 					zone.allowSow = true;
 					break;
 				default:
-					growZoneRegistry[zone.ID].sowMode = SowMode.On;
-					growZoneRegistry[zone.ID].iconCache = sowIconOn;
+					zoneData.sowMode = SowMode.On;
+					zoneData.iconCache = sowIconOn;
 					zone.allowSow = true;
 					break;
 			}
@@ -92,7 +114,6 @@ namespace SmartFarming
 		
 		private void CalculateAverages(Zone_Growing zone, ZoneData zoneData)
 		{
-			List<IntVec3> cells = zone.Cells;
 			int numOfCells = zone.cells.Count;
 			int numOfPlants = 0;
 			int newPlants = 0;
@@ -103,17 +124,18 @@ namespace SmartFarming
 			for (int n = 0; n < numOfCells; ++n)
 			{
 				//Fertility calculations
-				float fertilityHere = map.fertilityGrid.FertilityAt(zone.cells[n]);
+				IntVec3 index = zone.cells[n];
+				float fertilityHere = map.fertilityGrid.FertilityAt(index);
 				fertility += fertilityHere;
 				if (fertilityHere < lowestFertility) lowestFertility = fertilityHere;
 
 				//Plant tally
-				Plant plant = map.thingGrid.ThingAt<Plant>(zone.cells[n]);
-				if (plant != null && plant.def == zone.GetPlantDefToGrow())
+				Plant plant = map.thingGrid.ThingAt<Plant>(index);
+				if (plant != null && plant.def == zone.plantDefToGrow)
 				{
-					growth += plant.Growth;
+					growth += plant.growthInt;
 					++numOfPlants;
-					if (plant.Growth < 0.08f) ++newPlants;
+					if (plant.growthInt < 0.08f) ++newPlants;
 				}
 			}
 
@@ -149,16 +171,18 @@ namespace SmartFarming
 			int growthNeeded = (int)(plant.plant.growDays * plant.plant.harvestMinGrowth * 60000f * 1.1f * (1f - (forSowing ? 0f : zoneData.averageGrowth / plant.plant.harvestMinGrowth)));
 			int simulatedGrowth = 0;
 			int numOfDays = 0;
+			int lifespan = (int)plant.plant.LifespanDays;
 			
 			while (simulatedGrowth < growthNeeded && simulatedGrowth != -1)
 			{
-				SimulateDay(numOfDays, ref simulatedGrowth, zone, tempOffsetCache, currentDay, plant.plant.dieIfLeafless, zoneData);
+				simulatedGrowth = SimulateDay(numOfDays, simulatedGrowth, zone, plant, zoneData, world, tile);
 
-				if (++numOfDays > 120)
+				if (++numOfDays > 360)
 				{
 					Log.Warning("[Smart Farming] failed simulating " + plant.defName + " at zone " + zone.Position);
 					simulatedGrowth = -1;
 				}
+				else if (lifespan < numOfDays) simulatedGrowth = -1;
 			}
 
 			if (logging && Prefs.DevMode) Log.Message("[Smart Farming] simulation report: \n" + string.Join("\n", report));
@@ -166,14 +190,13 @@ namespace SmartFarming
 			return simulatedGrowth == -1 ? -1 : (numOfDays * 60000) + Find.TickManager.TicksAbs;
 		}
 
-		void SimulateDay(int numOfDays, ref int simulatedGrowth, Zone_Growing zone, float tempOffset, int startingDay, bool sensitiveToCold, ZoneData zoneData)
+		int SimulateDay(int numOfDays, int simulatedGrowth, Zone_Growing zone, ThingDef plant, ZoneData zoneData, RimWorld.Planet.World world, int tile)
 		{
 			int ticksOfLight = 32500; // 32500 = 60,000 ticks * .54167, only the hours this plant is "awake"
 			
 			//This adjusts the ticks of light if we're doing a partial day calculation, depending on what hour it currently is
 			if (numOfDays == 0)
 			{
-				int hour = GenDate.HourOfDay(Find.TickManager.TicksGame ,Find.WorldGrid.LongLatOf(map.Tile).x);
 				hour = 14 - hour;
 				if (hour < 1)
 				{
@@ -185,49 +208,58 @@ namespace SmartFarming
 			}
 
 			//Prepare date
-			numOfDays += startingDay;
+			numOfDays += currentDay;
 
 			//Fertility
-			float fertilityFactor = PlantUtility.GrowthRateFactorFor_Fertility(zone.GetPlantDefToGrow(), useAverageFertility ? zoneData.fertilityAverage : zoneData.fertilityLow);
+			float fertilityFactor = PlantUtility.GrowthRateFactorFor_Fertility(plant, useAverageFertility ? zoneData.fertilityAverage : zoneData.fertilityLow);
 			int growthToday =  (int)(ticksOfLight * fertilityFactor);
 
 			//Temperature
-			float low = Find.World.tileTemperatures.OutdoorTemperatureAt(map.Tile, (int)(numOfDays * 60000) + 15000) + tempOffset;
-			float high = Find.World.tileTemperatures.OutdoorTemperatureAt(map.Tile, (int)(numOfDays * 60000) + 47500) + tempOffset;
+			int numOfDayTicks = (int)(numOfDays * 60000);
+			float low = baseTemperature + OffsetFromSeasonCycle((int)(numOfDays * 60000) + sunrise) + sunLow + tempOffsetCache;
+			float high = baseTemperature + OffsetFromSeasonCycle((int)(numOfDays * 60000) + sunset) + sunHigh + tempOffsetCache;
 			float average = (low + high) / 2f;
 			growthToday = (int)(growthToday * PlantUtility.GrowthRateFactorFor_Temperature(average));
 			
 			//Results, use -1 if the plan will die/never grow
-			simulatedGrowth = (fertilityFactor == 0 || (sensitiveToCold && Math.Min(low, high) < minTempAllowed)) ? -1 : simulatedGrowth + growthToday;
+			simulatedGrowth = (fertilityFactor == 0 || (plant.plant.dieIfLeafless && Math.Min(low, high) < minTempAllowed)) ? -1 : simulatedGrowth + growthToday;
+
+			//Special check for freezing ground
+			if (!coldSowing && numOfDays - currentDay == 0 && low <= 0) simulatedGrowth = -1;
 
 			//Debug
 			if (logging && Prefs.DevMode)
 			{
-				report.Add(" - day: " + GenDate.DayOfYear(numOfDays * 60000, Find.WorldGrid.LongLatOf(map.Tile).x) + 
+				report.Add(" - day: " + GenDate.DayOfYear(numOfDayTicks, latitude) + 
 					" | temperature: " + Math.Round(low, 2) + " to " + Math.Round(high, 2) +  
 					" | growth: " + simulatedGrowth.ToString() + 
 					" | fertility: " + fertilityFactor.ToStringPercent() + 
 					" | temperature: " + PlantUtility.GrowthRateFactorFor_Temperature(average).ToStringPercent());
 			}
+
+			return simulatedGrowth;
 		}
 
-		void CalculateYield(Zone_Growing zone)
+		float OffsetFromSeasonCycle(int absTick)
+		{
+			float num = (float)(absTick / 60000 % 60) / 60f;
+			return (float)System.Math.Cos(6.2831855f * (num - worldAverage)) * -longitudeTuning;
+		}
+
+		void CalculateYield(Zone_Growing zone, ZoneData zoneData)
 		{
 			//Reset
-			growZoneRegistry[zone.ID].nutritionYield = 0f;
+			zoneData.nutritionYield = 0f;
 
-			//Fetch plant
-			ThingDef plant = zone.GetPlantDefToGrow();
-			if (plant == null) return;
+			if (zone.plantDefToGrow == null) return;
 
 			//Fetch plant's produce
-			ThingDef produce = plant.plant.harvestedThingDef;
-			if (produce == null) return;
+			if (zone.plantDefToGrow.plant.harvestedThingDef == null) return;
 
 			//Calculate the yield
-			float num = plant.plant.harvestYield * Find.Storyteller.difficulty.cropYieldFactor * zone.cells.Count;
-			float nutrition = produce.GetStatValueAbstract(StatDefOf.Nutrition, null);
-			growZoneRegistry[zone.ID].nutritionYield = nutrition * num;
+			float num = zone.plantDefToGrow.plant.harvestYield * Current.gameInt.storyteller.difficulty.cropYieldFactor * zone.cells.Count;
+			if (zoneData.nutritionCache == 0) zoneData.nutritionCache = zone.plantDefToGrow?.plant?.harvestedThingDef?.GetStatValueAbstract(StatDefOf.Nutrition, null) ?? 0;
+			zoneData.nutritionYield = zoneData.nutritionCache * num;
 		}
 
 		public void CalculateTotalHungerRate()
@@ -251,8 +283,7 @@ namespace SmartFarming
 
 		public void ProcessZones(bool cacheNow = false)
 		{
-			tempOffsetCache = map.gameConditionManager.AggregateTemperatureOffset();
-			currentDay = GenDate.DayOfYear(Find.TickManager.TicksAbs, Find.WorldGrid.LongLatOf(map.Tile).x);
+			UpdateCommonCache();
 			CalculateTotalHungerRate();
 
 			foreach (Zone zone in map.zoneManager.AllZones)
@@ -262,21 +293,28 @@ namespace SmartFarming
 			}
 		}
 
-		public void CalculateAll(Zone_Growing zone, bool cacheNow = true)
+		public void CalculateAll(Zone_Growing zone, bool cacheNow = true, bool resetMode = false)
 		{
 			if (growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData))
 			{
-				if (cacheNow)
-				{
-					tempOffsetCache = map.gameConditionManager.AggregateTemperatureOffset();
-					currentDay = GenDate.DayOfYear(Find.TickManager.TicksAbs, Find.WorldGrid.LongLatOf(map.Tile).x);
-				}
+				if (resetMode) zoneData.basicMode = false;
+				if (cacheNow) UpdateCommonCache();
 
 				CalculateAverages(zone, zoneData);
 				zoneData.minHarvestDay = CalculateDaysToHarvest(zone, zoneData, false);
 				zoneData.minHarvestDayForNewlySown = CalculateDaysToHarvest(zone, zoneData, true);
-				CalculateYield(zone);
+				CalculateYield(zone, zoneData);
 			}
+		}
+
+		void UpdateCommonCache()
+		{
+			tempOffsetCache = map.gameConditionManager.AggregateTemperatureOffset();
+			currentDay = GenDate.DayOfYear(Current.gameInt.tickManager.TicksAbs, latitude);
+			baseTemperature = world.grid[tile].temperature;
+			sunLow = (float)System.Math.Cos(6.2831855f * (GenDate.DayPercent((long)(currentDay * 60000) + sunrise, latitude) + 0.32f)) * 7f;
+			sunHigh = (float)System.Math.Cos(6.2831855f * (GenDate.DayPercent((long)(currentDay * 60000) + sunset, latitude) + 0.32f)) * 7f;
+			hour = GenDate.HourOfDay(Current.gameInt.tickManager.ticksGameInt, latitude);
 		}
 
 		public void HarvestNow(Zone_Growing zone)
@@ -288,10 +326,5 @@ namespace SmartFarming
 				if (plant?.def == crop && plant.Growth >= crop.plant.harvestMinGrowth) plant.Map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
 			}
 		}
-
-		int ticks, currentDay;
-		public Dictionary<int, ZoneData> growZoneRegistry = new Dictionary<int, ZoneData>();
-		public float totalHungerRate, tempOffsetCache;
-		List<string> report = new List<string>();
 	}
 }

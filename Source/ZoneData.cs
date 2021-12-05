@@ -48,8 +48,8 @@ namespace SmartFarming
 		public Priority priority; public enum Priority { Low = 1, Normal, Preferred, Important, Critical}	
 		public SowMode sowMode; public enum SowMode { On, Off, Smart, Force }
 		public Texture2D iconCache;
-		public float fertilityAverage, fertilityLow, averageGrowth, nutritionYield;
+		public float fertilityAverage, fertilityLow, averageGrowth, nutritionYield, nutritionCache;
 		public long minHarvestDay, minHarvestDayForNewlySown;
-		public bool noPettyJobs;
+		public bool noPettyJobs, basicMode;
 	}
 }
