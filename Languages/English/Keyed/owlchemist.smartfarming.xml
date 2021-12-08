@@ -53,4 +53,6 @@
 	<SmartFarming.Inspector.AverageGrowth>\nAverage growth: </SmartFarming.Inspector.AverageGrowth>
 	<SmartFarming.Inspector.Yield>\nPotential nutrition: </SmartFarming.Inspector.Yield>
 	<SmartFarming.Inspector.DaysWorth> days worth)</SmartFarming.Inspector.DaysWorth>
+	
+	<SmartFarming.Icon.SetAll>Set zones to </SmartFarming.Icon.SetAll>
 </LanguageData>

@@ -11,11 +11,17 @@ namespace SmartFarming
     {
         static void Postfix(Zone __instance)
         {
-			if (__instance is Zone_Growing)
-			{
-                var growZoneRegistry = compCache[__instance.Map].growZoneRegistry;
-			    if (!growZoneRegistry.ContainsKey(__instance.ID)) growZoneRegistry.Add(__instance.ID, new ZoneData());
-			}
+            Zone_Growing growZone = __instance as Zone_Growing;
+			if
+            (
+                growZone != null && 
+                compCache.TryGetValue(growZone.Map, out MapComponent_SmartFarming comp) &&
+			    !comp.growZoneRegistry.ContainsKey(__instance.ID)
+            )
+            {
+                comp.growZoneRegistry.Add(growZone.ID, new ZoneData());
+                comp.growZoneRegistry[growZone.ID].Init(comp, growZone);
+            }
         }
     }
 
@@ -39,7 +45,7 @@ namespace SmartFarming
     {
         static void Postfix(Zone_Growing __instance)
         {
-			compCache[__instance.Map].CalculateAll(__instance, true, true);
+			compCache[__instance.Map].CalculateAll(__instance, true);
         }
     }
 

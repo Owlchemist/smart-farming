@@ -32,31 +32,6 @@ namespace SmartFarming
 			compCache.Add(map, this);
 			CalculateTotalHungerRate();
 
-			//Add placeholder registy if missing
-			if (growZoneRegistry == null) growZoneRegistry = new Dictionary<int, ZoneData>();
-
-			//Find any missing zones (for when the mod is installed for an existing save)
-			foreach (Zone zone in map.zoneManager.AllZones)
-			{
-				Zone_Growing growZone = zone as Zone_Growing;
-				if (growZone != null && !growZoneRegistry.ContainsKey(growZone.ID))
-				{
-					growZoneRegistry.Add(growZone.ID, new ZoneData());
-					CalculateAll(growZone);
-				}
-			}
-
-			//Validate data
-			var allValidZones = map.zoneManager.AllZones.Where(x => x.GetType() == typeof(Zone_Growing)).Select(y => y.ID);
-			foreach (int zoneID in growZoneRegistry.Keys.ToList())
-			{
-				if (!allValidZones.Contains(zoneID))
-				{
-					if (Prefs.DevMode) Log.Message("[Smart Farming] Removing invalid key # " + zoneID);
-					growZoneRegistry.Remove(zoneID);
-				}
-			}
-
 			//Cache some frequently used getters that don't change
 			latitude = Find.WorldGrid.LongLatOf(map.Tile).x;
 			world = Find.World;
@@ -70,45 +45,36 @@ namespace SmartFarming
 			//Cache longitude tuning
 			if (world.grid.LongLatOf(map.Tile).y >= 0f) longitudeTuning = TemperatureTuning.SeasonalTempVariationCurve.Evaluate(world.grid.DistanceFromEquatorNormalized(tile));
 			else longitudeTuning = -TemperatureTuning.SeasonalTempVariationCurve.Evaluate(world.grid.DistanceFromEquatorNormalized(tile));
-		}
 
-		public void SwitchPriority(Zone_Growing zone)
-		{
-			SoundDefOf.Click.PlayOneShotOnCamera(null);
-			
-			ZoneData zoneData = growZoneRegistry[zone.ID];
-			int length = Enum.GetValues(typeof(Priority)).Length;
+			//Add placeholder registy if missing
+			if (growZoneRegistry == null) growZoneRegistry = new Dictionary<int, ZoneData>();
 
-			zoneData.priority = zoneData.priority != Priority.Critical ? ++zoneData.priority : Priority.Low;
-		}
-		public void SwitchSowMode(Zone_Growing zone)
-		{
-			SoundDefOf.Click.PlayOneShotOnCamera(null);
-			ZoneData zoneData = growZoneRegistry[zone.ID];
-			zoneData.basicMode = false;
-			switch (zoneData.sowMode)
+			//Find any missing zones (for when the mod is installed for an existing save)
+			foreach (Zone zone in map.zoneManager.AllZones)
 			{
-				case SowMode.Force:
-					zoneData.sowMode = SowMode.Off;
-					zoneData.iconCache = sowIconOff;
-					zone.allowSow = false;
-					break;
-				case SowMode.On:
-					zoneData.sowMode = SowMode.Smart;
-					zoneData.iconCache = sowIconSmart;
-					CalculateAll(zone);
-					zone.allowSow = true;
-					break;
-				case SowMode.Smart:
-					zoneData.sowMode = SowMode.Force;
-					zoneData.iconCache = sowIconForce;
-					zone.allowSow = true;
-					break;
-				default:
-					zoneData.sowMode = SowMode.On;
-					zoneData.iconCache = sowIconOn;
-					zone.allowSow = true;
-					break;
+				Zone_Growing growZone = zone as Zone_Growing;
+				if (growZone != null && !growZoneRegistry.ContainsKey(growZone.ID))
+				{
+					growZoneRegistry.Add(growZone.ID, new ZoneData());
+					growZoneRegistry[growZone.ID].Init(this, growZone);
+					CalculateAll(growZone);
+				}
+			}
+
+			//Validate data
+			var allValidZones = map.zoneManager.AllZones.Where(x => x.GetType() == typeof(Zone_Growing)).Select(y => y.ID);
+			foreach (var zoneData in growZoneRegistry.ToList())
+			{
+				int zoneID = zoneData.Key;
+				if (!allValidZones.Contains(zoneID))
+				{
+					if (Prefs.DevMode) Log.Message("[Smart Farming] Removing invalid key # " + zoneID);
+					growZoneRegistry.Remove(zoneID);
+				}
+				else
+				{
+					zoneData.Value.Init(this, map.zoneManager.AllZones.FirstOrDefault(x => x.ID == zoneID) as Zone_Growing);
+				}
 			}
 		}
 		
@@ -293,11 +259,10 @@ namespace SmartFarming
 			}
 		}
 
-		public void CalculateAll(Zone_Growing zone, bool cacheNow = true, bool resetMode = false)
+		public void CalculateAll(Zone_Growing zone, bool cacheNow = true)
 		{
 			if (growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData))
 			{
-				if (resetMode) zoneData.basicMode = false;
 				if (cacheNow) UpdateCommonCache();
 
 				CalculateAverages(zone, zoneData);

@@ -2,9 +2,7 @@ using HarmonyLib;
 using Verse;
 using RimWorld;
 using System.Collections.Generic;
-using System.Linq;
 using System;
-using UnityEngine;
 using static SmartFarming.Mod_SmartFarming;
 using static SmartFarming.ModSettings_SmartFarming;
 using static SmartFarming.ZoneData;
@@ -17,133 +15,76 @@ namespace SmartFarming
     {
         static IEnumerable<Gizmo> Postfix(IEnumerable<Gizmo> values, Zone_Growing __instance)
         {
+            //Pass along all other gizmos except vanilla sow, which we only identify via its hotkey...
             foreach (var value in values)
             {
-                //This will exclude the vanilla sow gizmo, since we're replacing it
                 if (((Command)value)?.hotKey == KeyBindingDefOf.Command_ItemForbid) continue;
-                //Pass along all othe gizmos...
                 yield return value;
             }
 
-            MapComponent_SmartFarming comp = compCache[__instance.Map];
-            if (comp != null)
+            Map map = __instance.Map;
+            if (compCache.TryGetValue(map, out MapComponent_SmartFarming comp) && comp.growZoneRegistry.TryGetValue(__instance.ID, out ZoneData zoneData))
             {
-                ZoneData zoneData = comp.growZoneRegistry[__instance.ID];
-                
-                string label = "SmartFarming.Icon." + zoneData.sowMode.ToString();
-                string desc = "SmartFarming.Icon." + zoneData.sowMode.ToString() + ".Desc";
-
-                if (Find.Selector.NumSelected == 1 || CheckIfEqualSowModes(comp))
+                //Return the sow mode gizmo and priority gizmo
+                if (Find.Selector.selected.Count == 1)
                 {
-                    yield return new Command_Action()
-                    {
-                        defaultLabel = label.Translate(),
-                        defaultDesc = desc.Translate(),
-                        hotKey = KeyBindingDefOf.Command_ItemForbid,
-                        icon = zoneData.iconCache,
-                        action = () => comp.SwitchSowMode(__instance)
-                    };
+                    yield return zoneData.sowGizmo;
+                    yield return zoneData.priorityGizmo;
                 }
-
-                string priorityLabel = "SmartFarming.Icon." + zoneData.priority.ToString();
-
-                if (Find.Selector.NumSelected == 1 || CheckIfEqualPriority(comp))
+                else
                 {
-                    yield return new Command_Action()
+                    foreach (var gizmo in GetMultiZoneGizmos(comp, zoneData, __instance))
                     {
-                        defaultLabel = priorityLabel.Translate(),
-                        defaultDesc = "SmartFarming.Icon.Priority.Desc".Translate(),
-                        icon = ResourceBank.iconPriority,
-                        action = () => comp.SwitchPriority(__instance)
-                    };
-                }
-
-                yield return new Command_Toggle
-                {
-                    defaultLabel = "SmartFarming.Icon.NoPettyJobs".Translate(),
-                    defaultDesc = "SmartFarming.Icon.NoPettyJobs.Desc".Translate(),
-                    icon = TexCommand.ForbidOff,
-                    isActive = (() => zoneData.noPettyJobs),
-                    toggleAction = delegate()
-                    {
-                        zoneData.noPettyJobs = !zoneData.noPettyJobs;
+                        yield return gizmo;
                     }
-                };
+                }
+                
+                //Petty jobs gizmo
+                yield return zoneData.pettyJobsGizmo;
 
-                ThingDef crop = __instance.GetPlantDefToGrow();
-                Map map = __instance.Map;
-                foreach (var cell in __instance.cells)
+                //Harvest now gizmo
+                ThingDef crop = __instance.plantDefToGrow;
+                foreach (IntVec3 cell in __instance.cells)
                 {
                     Plant plant = map.thingGrid.ThingAt<Plant>(cell);
                     if (plant?.def == crop && crop.plant.harvestedThingDef != null && plant.Growth >= crop.plant.harvestMinGrowth)
                     {
-                        yield return new Command_Action()
-                        {
-                            defaultLabel = "SmartFarming.Icon.HarvestNow".Translate(),
-                            defaultDesc = "SmartFarming.Icon.HarvestNow.Desc".Translate(),
-                            icon = ResourceBank.iconHarvest,
-                            action = () => comp.HarvestNow(__instance)
-                        };
+                        yield return zoneData.harvestGizmo;
                         break;
                     }
                 }
             }
         }
 
-        //4AM code looks junky, need to refactor this later...
-        static bool CheckIfEqualSowModes(MapComponent_SmartFarming comp)
+        static IEnumerable<Gizmo> GetMultiZoneGizmos(MapComponent_SmartFarming comp, ZoneData zoneData, Zone_Growing thizZone)
         {
-            //Get list of zones selected
-            var selectedZones = Find.Selector.selected.Where(x => x.GetType() == typeof(Zone_Growing))?.Cast<Zone_Growing>().Select(y => y.ID);
+            ZoneData basisZone = zoneData;
+            foreach (var zone in Find.Selector.selected)
+            {
+                Zone_Growing growZone = zone as Zone_Growing;
+                if (growZone != null && comp.growZoneRegistry.TryGetValue(growZone.ID, out ZoneData tmp))
+                {
+                    basisZone = tmp;
+                    break;
+                }
+            }
             
-            //Go through the IDs
-            int i = 0;
-            Texture2D lastIcon = null;
-            foreach (var zoneID in selectedZones)
+            yield return new Command_Action()
             {
-                ++i;
-                ZoneData tmp;
-                if (comp.growZoneRegistry.TryGetValue(zoneID, out tmp))
-                {
-                    if (i == 1)
-                    {
-                        lastIcon = tmp.iconCache;
-                        continue;
-                    }
-                    else if (tmp.iconCache != lastIcon)
-                    {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-
-        static bool CheckIfEqualPriority(MapComponent_SmartFarming comp)
-        {
-            //Get list of zones selected
-            var selectedZones = Find.Selector.selected.Where(x => x.GetType() == typeof(Zone_Growing))?.Cast<Zone_Growing>().Select(y => y.ID);
-
-            int i = 0;
-            ZoneData.Priority lastPriority = ZoneData.Priority.Normal;
-            foreach (var zoneID in selectedZones)
+                defaultLabel = ("SmartFarming.Icon.SetAll".Translate() + basisZone.sowGizmo.defaultLabel.ToLower()),
+                defaultDesc = basisZone.sowGizmo.defaultDesc,
+                hotKey = KeyBindingDefOf.Command_ItemForbid,
+                icon = basisZone.iconCache[basisZone.sowMode],
+                action = () => zoneData.SwitchSowMode(comp, thizZone, basisZone.sowMode)
+            };
+            yield return new Command_Action()
             {
-                ++i;
-                ZoneData tmp;
-                if (comp.growZoneRegistry.TryGetValue(zoneID, out tmp))
-                {
-                    if (i == 1)
-                    {
-                        lastPriority = tmp.priority;
-                        continue;
-                    }
-                    else if (tmp.priority != lastPriority)
-                    {
-                        return false;
-                    }
-                }
-            }
-            return true;
+                defaultLabel = ("SmartFarming.Icon.SetAll".Translate() + basisZone.priorityGizmo.defaultLabel.ToLower()),
+                defaultDesc = basisZone.priorityGizmo.defaultDesc,
+                icon = ResourceBank.iconPriority,
+                action = () => zoneData.SwitchPriority(basisZone.priority)
+            };
+            yield break;
         }
     }
 
