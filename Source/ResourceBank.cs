@@ -11,6 +11,7 @@ namespace SmartFarming
 		public static readonly Texture2D sowIconSmart = ContentFinder<Texture2D>.Get("UI/Owl_SmartSow", true);
 		public static readonly Texture2D sowIconForce = ContentFinder<Texture2D>.Get("UI/Owl_ForceSow", true);
 		public static readonly Texture2D iconPriority = ContentFinder<Texture2D>.Get("UI/Owl_Priority", true);
+		public static readonly Texture2D allowHarvest =  ContentFinder<Texture2D>.Get("UI/Owl_AllowHarvest", true);
 		public static readonly Texture2D iconHarvest =  ContentFinder<Texture2D>.Get("UI/Designators/Harvest", true);
 	}
 }

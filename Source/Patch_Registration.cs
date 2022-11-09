@@ -14,13 +14,14 @@ namespace SmartFarming
             Zone_Growing growZone = __instance as Zone_Growing;
 			if
             (
-                growZone != null && 
-                compCache.TryGetValue(growZone.Map, out MapComponent_SmartFarming comp) &&
-			    !comp.growZoneRegistry.ContainsKey(__instance.ID)
+                growZone != null && //Is a grow zone?
+                compCache.TryGetValue(growZone.Map, out MapComponent_SmartFarming comp) && //Can find map component?
+			    !comp.growZoneRegistry.ContainsKey(__instance.ID) //Zone data not yet made?
             )
             {
                 comp.growZoneRegistry.Add(growZone.ID, new ZoneData());
                 comp.growZoneRegistry[growZone.ID].Init(comp, growZone);
+                if (Prefs.DevMode && ModSettings_SmartFarming.logging) Log.Message("Zone ID " + growZone.ID + " registered.");
             }
         }
     }

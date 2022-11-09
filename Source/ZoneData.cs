@@ -26,6 +26,7 @@ namespace SmartFarming
 			Scribe_Values.Look<long>(ref minHarvestDayForNewlySown, "minHarvestDayForNewlySown", 0, false);
 			Scribe_Values.Look<float>(ref nutritionYield, "nutritionYield", 0, false);
 			Scribe_Values.Look<bool>(ref noPettyJobs, "pettyJobs", false, false);
+			Scribe_Values.Look<bool>(ref allowHarvest, "allowHarvest", true, false);
 		}
 
 		public void Init(MapComponent_SmartFarming comp, Zone_Growing zone)
@@ -53,12 +54,23 @@ namespace SmartFarming
 						noPettyJobs = !noPettyJobs;
 					}
 				};
+			allowHarvestGizmo = new Command_Toggle
+				{
+					defaultLabel = "SmartFarming.Icon.AllowHarvest".Translate(),
+					defaultDesc = "SmartFarming.Icon.AllowHarvest.Desc".Translate(),
+					icon = ResourceBank.allowHarvest,
+					isActive = (() => allowHarvest),
+					toggleAction = delegate()
+					{
+						allowHarvest = !allowHarvest;
+					}
+				};
 			harvestGizmo = new Command_Action()
 				{
 					defaultLabel = "SmartFarming.Icon.HarvestNow".Translate(),
 					defaultDesc = "SmartFarming.Icon.HarvestNow.Desc".Translate(),
 					icon = ResourceBank.iconHarvest,
-					action = () => comp.HarvestNow(zone)
+					action = () => comp.HarvestNow(zone, roofCheck: false)
 				};
 			UpdateGizmos();
 		}
@@ -121,10 +133,11 @@ namespace SmartFarming
 		};
 		public float fertilityAverage, fertilityLow, averageGrowth, nutritionYield, nutritionCache;
 		public long minHarvestDay, minHarvestDayForNewlySown;
-		public bool noPettyJobs;
+		public bool noPettyJobs, allowHarvest = true;
 		public Command_Action sowGizmo = default(Command_Action);
 		public Command_Action priorityGizmo = default(Command_Action);
 		public Command_Toggle pettyJobsGizmo = default(Command_Toggle);
+		public Command_Toggle allowHarvestGizmo = default(Command_Toggle);
 		public Command_Action harvestGizmo = default(Command_Action);
 	}
 }

@@ -41,6 +41,8 @@ namespace SmartFarming
                 
                 //Petty jobs gizmo
                 yield return zoneData.pettyJobsGizmo;
+                //Allow harvest gizmo
+                if (allowHarvestOption) yield return zoneData.allowHarvestGizmo;
 
                 //Harvest now gizmo
                 ThingDef crop = __instance.plantDefToGrow;
@@ -99,10 +101,27 @@ namespace SmartFarming
                 Zone_Growing zone = map.zoneManager.ZoneAt(c) as Zone_Growing;
                 if (zone == null) return;
 
-                var zoneData = compCache.TryGetValue(map)?.growZoneRegistry[zone.ID];
-                if (zoneData == null) return;
+                var zoneData = compCache?.TryGetValue(map)?.growZoneRegistry?.TryGetValue(zone?.ID ?? -1);
+                if (zoneData == null)
+                {
+                    if (compCache == null) Log.Warning("Smart farming component cache not found.");
+                    else if (compCache.TryGetValue(map) == null) Log.Warning("Smart farming map component not found.");
+                    else if (compCache.TryGetValue(map).growZoneRegistry == null) Log.Warning("Smart farming registry not found.");
+                    else if (zone == null) Log.Warning("Zone is invalid.");
+                    else {
+                        Log.Warning("Zone ID " + zone.ID + " not found in Smart Farming registry. Found zones:");
+                        if (compCache.TryGetValue(map).growZoneRegistry.Count > 0)
+                        {                        
+                            foreach(var tmp in compCache?.TryGetValue(map)?.growZoneRegistry.Keys)
+                            {
+                                Log.Warning(tmp.ToString());
+                            }
+                        }
+                    }
+                    return;
+                }
 
-                if (zoneData.sowMode == SowMode.Force || (coldSowing && zone.GetPlantDefToGrow().plant.IsTree && !zone.GetPlantDefToGrow().plant.dieIfLeafless)) __result = true;
+                if (zoneData.sowMode == SowMode.Force || (coldSowing && zone.plantDefToGrow.plant.IsTree && !zone.plantDefToGrow.plant.dieIfLeafless)) __result = true;
                 else if (zoneData.sowMode == SowMode.Smart) __result = zoneData.minHarvestDayForNewlySown > -1;
             }
         }
@@ -114,27 +133,32 @@ namespace SmartFarming
     {
         static void Postfix(ref string __result, Zone_Growing __instance)
         {
-            var zoneData = compCache[__instance.Map].growZoneRegistry[__instance.ID];
-            if (zoneData.averageGrowth < __instance.GetPlantDefToGrow().plant.harvestMinGrowth)
+            Map map = __instance.Map;
+            ZoneData zoneData = compCache.TryGetValue(map)?.growZoneRegistry.TryGetValue(__instance?.ID ?? -1);
+            if (zoneData == null) return;
+
+            if (zoneData.averageGrowth < __instance.plantDefToGrow.plant.harvestMinGrowth)
             {
-                if (zoneData.minHarvestDay > 0) __result += "SmartFarming.Inspector.MinHarvestDay".Translate() + GenDate.DateFullStringAt(zoneData.minHarvestDay, Find.WorldGrid.LongLatOf(__instance.Map.Tile));
+                if (zoneData.minHarvestDay > 0) __result += "SmartFarming.Inspector.MinHarvestDay".Translate() + GenDate.DateFullStringAt(zoneData.minHarvestDay, Find.WorldGrid.LongLatOf(map.Tile));
                 else __result += "SmartFarming.Inspector.MinHarvestDayFail".Translate();
             }
             if (zoneData.fertilityAverage != 0) __result += "SmartFarming.Inspector.Fertility".Translate() + zoneData.fertilityAverage.ToStringPercent();
             if (zoneData.averageGrowth != 0) __result += "SmartFarming.Inspector.AverageGrowth".Translate() + zoneData.averageGrowth.ToStringPercent();
             if (zoneData.nutritionYield != 0) __result += "SmartFarming.Inspector.Yield".Translate() + Math.Round(zoneData.nutritionYield, 2);
-            if (__instance.GetPlantDefToGrow()?.plant.harvestedThingDef?.ingestible?.HumanEdible ?? false) __result += " (" + Math.Round(zoneData.nutritionYield * processedFoodFactor / compCache[__instance.Map].totalHungerRate, 2) + "SmartFarming.Inspector.DaysWorth".Translate();
+            if (__instance.plantDefToGrow?.plant.harvestedThingDef?.ingestible?.HumanEdible ?? false) __result += " (" + Math.Round(zoneData.nutritionYield * processedFoodFactor / compCache[map].totalHungerRate, 2) + "SmartFarming.Inspector.DaysWorth".Translate();
         }
     }
 
+    //This is for the "auto cut blighted" mod option
     [HarmonyPatch (typeof(Plant), nameof(Plant.CropBlighted))]
 	public static class Patch_CropBlighted
 	{
 		public static void Postfix(Plant __instance)
 		{
-			if (autoCutBlighted && __instance.Map.designationManager.DesignationOn(__instance, DesignationDefOf.CutPlant) == null)
+			Map map = __instance.Map;
+            if (autoCutBlighted && map.designationManager.DesignationOn(__instance, DesignationDefOf.CutPlant) == null)
 			{
-				__instance.Map.designationManager.AddDesignation(new Designation(__instance, DesignationDefOf.CutPlant));
+				map.designationManager.AddDesignation(new Designation(__instance, DesignationDefOf.CutPlant));
 			}
 		}
 	}
@@ -147,30 +171,27 @@ namespace SmartFarming
 		{
             if (autoCutDying && __instance.def.plant.dieIfLeafless)
             {
-                //This method seem to call before the comps are fully loaded, so we need to check
-                MapComponent_SmartFarming comp = compCache.GetValueSafe(__instance.Map);
-                if (comp == null) return;
-
-                //Is this plant part of a zone?
-                Zone_Growing zone = __instance.Map.zoneManager.ZoneAt(__instance.Position) as Zone_Growing;
-                if (zone == null) return;
-
-                __instance.Map.listerThings.ThingsOfDef(zone.GetPlantDefToGrow()).ForEach
-                (x =>
-                    {
-                        Plant plant = x as Plant;
-                        if (plant?.Growth >= plant.def.plant.harvestMinGrowth && //Ready for harvest?
-                        plant.def.plant.harvestedThingDef != null && //Can be harvested?
-                        !plant.Map.designationManager.HasMapDesignationOn(plant) &&  //Is not already designatd?
-                        plant.Map.zoneManager.ZoneAt(plant.Position) != null && //Is part of a zone?
-                        !plant.Map.roofGrid.Roofed(plant.Position)) //Is not roofed?
-                        {
-                            plant.Map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
-                        }
-                    }
-                );
+                Map map = __instance.Map;
+                compCache.GetValueSafe(map)?.HarvestNow(map.zoneManager.ZoneAt(__instance.positionInt) as Zone_Growing);
             }
 		}
 	}
 
+    [HarmonyPatch(typeof(WorkGiver_GrowerHarvest), nameof(WorkGiver_GrowerHarvest.HasJobOnCell))]
+	internal static class Patch_WorkGiver_GrowerHarvest
+	{
+		private static bool Prefix(Pawn pawn, IntVec3 c)
+		{
+            if (!allowHarvestOption) return true;
+            Map map = pawn?.Map;
+
+            Zone_Growing zone = map?.zoneManager.ZoneAt(c) as Zone_Growing;
+            if (zone == null) return true;
+
+            var zoneData = compCache?.TryGetValue(map)?.growZoneRegistry?.TryGetValue(zone?.ID ?? -1);
+            if (zoneData == null) return true;
+
+            return zoneData.allowHarvest;
+		}
+	}
 }

@@ -13,7 +13,7 @@ namespace SmartFarming
 {
     public class MapComponent_SmartFarming : MapComponent
 	{
-		int ticks, currentDay, tile, hour, sunrise, sunset;
+		int ticks, currentDay, tile, hour, sunrise, sunset, lastMessageDay = -1;
 		public Dictionary<int, ZoneData> growZoneRegistry = new Dictionary<int, ZoneData>();
 		public float totalHungerRate, tempOffsetCache, latitude, longitudeTuning, baseTemperature, worldAverage, sunLow, sunHigh;
 		List<string> report = new List<string>();
@@ -62,7 +62,7 @@ namespace SmartFarming
 			}
 
 			//Validate data
-			var allValidZones = map.zoneManager.AllZones.Where(x => x.GetType() == typeof(Zone_Growing)).Select(y => y.ID);
+			var allValidZones = map.zoneManager.AllZones.Where(x => x is Zone_Growing).Select(y => y.ID);
 			foreach (var zoneData in growZoneRegistry.ToList())
 			{
 				int zoneID = zoneData.Key;
@@ -113,17 +113,20 @@ namespace SmartFarming
 			zoneData.averageGrowth = (numOfPlants > 0) ? growth / numOfPlants : 0f;
 
 			//Process petty jobs since we already have all the data needed
-			if (zoneData.noPettyJobs && zoneData.sowMode != SowMode.Off)
+			if (zoneData.noPettyJobs)
 			{
-				float validPlants = numOfPlants - newPlants;
-				zone.allowSow = !(validPlants > 0 && 1 - (validPlants / (float)numOfCells) < pettyJobs);
+				if (zoneData.sowMode != SowMode.Off)
+				{
+					float validPlants = numOfPlants - newPlants;
+					zone.allowSow = !(validPlants > 0 && 1 - (validPlants / (float)numOfCells) < pettyJobs);
+				}
 			}
+			//If not using petty jobs, validate the sowmode
+			else zone.allowSow = zoneData.sowMode != SowMode.Off;
 		}
 
 		private long CalculateDaysToHarvest(Zone_Growing zone, ZoneData zoneData, bool forSowing = false)
 		{
-			report.Clear();
-
 			//Check for toxic fallout first
 			if (map.gameConditionManager.ConditionIsActive(GameConditionDefOf.ToxicFallout) && !map.roofGrid.Roofed(zone.Position)){
 				return -1;
@@ -133,7 +136,7 @@ namespace SmartFarming
 			if (plant == null) return -1;
 
 			//Prepare variables
-			
+			List<string> simulationReport = new List<string>();
 			int growthNeeded = (int)(plant.plant.growDays * plant.plant.harvestMinGrowth * 60000f * 1.1f * (1f - (forSowing ? 0f : zoneData.averageGrowth / plant.plant.harvestMinGrowth)));
 			int simulatedGrowth = 0;
 			int numOfDays = 0;
@@ -141,7 +144,7 @@ namespace SmartFarming
 			
 			while (simulatedGrowth < growthNeeded && simulatedGrowth != -1)
 			{
-				simulatedGrowth = SimulateDay(numOfDays, simulatedGrowth, zone, plant, zoneData, world, tile);
+				simulatedGrowth = SimulateDay(numOfDays, simulatedGrowth, zone, plant, zoneData, world, tile, simulationReport);
 
 				if (++numOfDays > 360)
 				{
@@ -151,12 +154,17 @@ namespace SmartFarming
 				else if (lifespan < numOfDays) simulatedGrowth = -1;
 			}
 
-			if (logging && Prefs.DevMode) Log.Message("[Smart Farming] simulation report: \n" + string.Join("\n", report));
+			if (logging && Prefs.DevMode)
+			{
+				string reportPrint = simulationReport.Count > 0 ? ("\n" + string.Join("\n", simulationReport)) : "skipped";
+				report.Add(" - " + (forSowing ? "new sowing ": "") + "report for " + 
+					zone.Position.ToString()  + " (" + zone.plantDefToGrow.defName + ") : " + reportPrint);
+			} 
 
 			return simulatedGrowth == -1 ? -1 : (numOfDays * 60000) + Find.TickManager.TicksAbs;
 		}
 
-		int SimulateDay(int numOfDays, int simulatedGrowth, Zone_Growing zone, ThingDef plant, ZoneData zoneData, RimWorld.Planet.World world, int tile)
+		int SimulateDay(int numOfDays, int simulatedGrowth, Zone_Growing zone, ThingDef plant, ZoneData zoneData, RimWorld.Planet.World world, int tile, List<string> simulationReport)
 		{
 			int ticksOfLight = 32500; // 32500 = 60,000 ticks * .54167, only the hours this plant is "awake"
 			
@@ -174,16 +182,16 @@ namespace SmartFarming
 			}
 
 			//Prepare date
-			numOfDays += currentDay;
+			int dayToSimulate = numOfDays + currentDay;
 
 			//Fertility
 			float fertilityFactor = PlantUtility.GrowthRateFactorFor_Fertility(plant, useAverageFertility ? zoneData.fertilityAverage : zoneData.fertilityLow);
 			int growthToday =  (int)(ticksOfLight * fertilityFactor);
 
 			//Temperature
-			int numOfDayTicks = (int)(numOfDays * 60000);
-			float low = baseTemperature + OffsetFromSeasonCycle((int)(numOfDays * 60000) + sunrise) + sunLow + tempOffsetCache;
-			float high = baseTemperature + OffsetFromSeasonCycle((int)(numOfDays * 60000) + sunset) + sunHigh + tempOffsetCache;
+			int numOfDayTicks = (int)(dayToSimulate * 60000);
+			float low = baseTemperature + OffsetFromSeasonCycle((int)(dayToSimulate * 60000) + sunrise) + sunLow + tempOffsetCache;
+			float high = baseTemperature + OffsetFromSeasonCycle((int)(dayToSimulate * 60000) + sunset) + sunHigh + tempOffsetCache;
 			float average = (low + high) / 2f;
 			growthToday = (int)(growthToday * PlantUtility.GrowthRateFactorFor_Temperature(average));
 			
@@ -191,12 +199,19 @@ namespace SmartFarming
 			simulatedGrowth = (fertilityFactor == 0 || (plant.plant.dieIfLeafless && Math.Min(low, high) < minTempAllowed)) ? -1 : simulatedGrowth + growthToday;
 
 			//Special check for freezing ground
-			if (!coldSowing && numOfDays - currentDay == 0 && low <= 0) simulatedGrowth = -1;
+			if (!coldSowing && numOfDays == 0 && low <= 0) simulatedGrowth = -1;
+
+			//Dangerously cold tonight? Mark plants for harvest nd Give a message and avoid message spam
+			if (autoHarvestNow && numOfDays < 2 && simulatedGrowth == -1 && HarvestNow(zone) > 0 && currentDay != lastMessageDay) 
+			{
+				lastMessageDay = currentDay;
+				Messages.Message("SmartFarming.Message.AutoHarvestNow".Translate(), MessageTypeDefOf.NeutralEvent, false);	
+			}
 
 			//Debug
 			if (logging && Prefs.DevMode)
 			{
-				report.Add(" - day: " + GenDate.DayOfYear(numOfDayTicks, latitude) + 
+				simulationReport.Add("   - day: " + dayToSimulate + 
 					" | temperature: " + Math.Round(low, 2) + " to " + Math.Round(high, 2) +  
 					" | growth: " + simulatedGrowth.ToString() + 
 					" | fertility: " + fertilityFactor.ToStringPercent() + 
@@ -233,8 +248,8 @@ namespace SmartFarming
 			totalHungerRate = 0; //Reset
 			foreach (Pawn pawn in map.mapPawns.FreeColonistsAndPrisoners)
 			{
-				totalHungerRate += Need_Food.BaseHungerRateFactor(pawn.ageTracker.CurLifeStage, pawn.def) * pawn.health.hediffSet.HungerRateFactor * 
-				((pawn.story == null || pawn.story.traits == null) ? 1f : pawn.story.traits.HungerRateFactor) * pawn.GetStatValue(StatDefOf.HungerRateMultiplier, true);
+				totalHungerRate += (Need_Food.BaseHungerRate(pawn.ageTracker.CurLifeStage, pawn.def) * 60000f) * HungerCategory.Fed.HungerMultiplier() * pawn.health.hediffSet.GetHungerRateFactor(true ? null : HediffDefOf.Malnutrition) * 
+				(pawn.story?.traits?.HungerRateFactor ?? 1f);
 			}
 		}
 
@@ -252,11 +267,13 @@ namespace SmartFarming
 			UpdateCommonCache();
 			CalculateTotalHungerRate();
 
+			report.Clear();
 			foreach (Zone zone in map.zoneManager.AllZones)
 			{
 				Zone_Growing growZone = zone as Zone_Growing;
 				if (growZone != null) CalculateAll(growZone, false);
 			}
+			if (logging && Prefs.DevMode) Log.Message("[Smart Farming] Simulation report: \n" + string.Join("\n", report));
 		}
 
 		public void CalculateAll(Zone_Growing zone, bool cacheNow = true)
@@ -282,14 +299,30 @@ namespace SmartFarming
 			hour = GenDate.HourOfDay(Current.gameInt.tickManager.ticksGameInt, latitude);
 		}
 
-		public void HarvestNow(Zone_Growing zone)
+		public int HarvestNow(Zone_Growing zone, bool roofCheck = true)
 		{
-			ThingDef crop = zone.GetPlantDefToGrow();
-			foreach (IntVec3 cell in zone.cells)
+			ThingDef crop = zone?.plantDefToGrow;
+			if (crop == null) return 0;
+			Map map = zone.Map;
+
+			int result = 0;
+			int length = zone.cells.Count;
+			for (int i = 0; i < length; ++i)
 			{
-				Plant plant = zone.Map?.thingGrid.ThingAt<Plant>(cell);
-				if (plant?.def == crop && plant.Growth >= crop.plant.harvestMinGrowth) plant.Map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
+				Plant plant = map.thingGrid.ThingAt<Plant>(zone.cells[i]) as Plant;
+
+				if (plant?.def == crop && //Is this the right plant?
+				plant.Growth >= plant.def.plant.harvestMinGrowth && //Ready for harvest?
+				plant.def.plant.harvestedThingDef != null && //Can be harvested?
+				plant.def.plant.dieIfLeafless && //Can die to the cold?
+				!map.designationManager.HasMapDesignationOn(plant) &&  //Is not already designatd?
+				(!roofCheck || !map.roofGrid.Roofed(plant.Position))) //Is not roofed?
+				{
+					++result;
+					map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
+				}
 			}
+			return result;
 		}
 	}
 }
