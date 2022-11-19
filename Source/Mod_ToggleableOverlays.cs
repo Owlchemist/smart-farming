@@ -9,7 +9,7 @@ namespace SmartFarming
 {
     public class Mod_SmartFarming : Mod
 	{
-		public static Dictionary<Map, MapComponent_SmartFarming> compCache = new Dictionary<Map, MapComponent_SmartFarming>();
+		public static Dictionary<int, MapComponent_SmartFarming> compCache = new Dictionary<int, MapComponent_SmartFarming>();
 
 		public Mod_SmartFarming(ModContentPack content) : base(content)
 		{

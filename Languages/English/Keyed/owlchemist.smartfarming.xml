@@ -58,10 +58,10 @@
 	
 	<SmartFarming.Inspector.MinHarvestDay>\nEarliest harvest day: </SmartFarming.Inspector.MinHarvestDay>
 	<SmartFarming.Inspector.MinHarvestDayFail>\nPlants will likely die before harvest</SmartFarming.Inspector.MinHarvestDayFail>
-	<SmartFarming.Inspector.Fertility>\nAverage fertility: </SmartFarming.Inspector.Fertility>
+	<SmartFarming.Inspector.Fertility>\nFertility: {0} average / {1} weakest</SmartFarming.Inspector.Fertility>
 	<SmartFarming.Inspector.AverageGrowth>\nAverage growth: </SmartFarming.Inspector.AverageGrowth>
 	<SmartFarming.Inspector.Yield>\nPotential nutrition: </SmartFarming.Inspector.Yield>
-	<SmartFarming.Inspector.DaysWorth> days worth)</SmartFarming.Inspector.DaysWorth>
+	<SmartFarming.Inspector.DaysWorth> ({0} days worth)</SmartFarming.Inspector.DaysWorth>
 	
 	<SmartFarming.Icon.SetAll>Set zones to </SmartFarming.Icon.SetAll>
 </LanguageData>

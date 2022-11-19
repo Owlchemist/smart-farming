@@ -21,6 +21,7 @@ namespace SmartFarming
 			Scribe_Values.Look<SowMode>(ref sowMode, "sowMode", 0, false);
 			Scribe_Values.Look<Priority>(ref priority, "priority", Priority.Normal, false);
 			Scribe_Values.Look<float>(ref fertilityAverage, "averageFertility", 1f, false);
+			Scribe_Values.Look<float>(ref fertilityLow, "fertilityLow", 1f, false);
 			Scribe_Values.Look<float>(ref averageGrowth, "averageGrowth", 0f, false);
 			Scribe_Values.Look<long>(ref minHarvestDay, "minHarvestDay", 0, false);
 			Scribe_Values.Look<long>(ref minHarvestDayForNewlySown, "minHarvestDayForNewlySown", 0, false);
@@ -122,7 +123,7 @@ namespace SmartFarming
 			priorityGizmo.defaultLabel = ("SmartFarming.Icon." + priority.ToString()).Translate();
 		}
 
-		public Priority priority; public enum Priority { Low = 1, Normal, Preferred, Important, Critical}	
+		public Priority priority; public enum Priority { Low = 1, Normal, Preferred, Important, Critical}
 		public SowMode sowMode; public enum SowMode { On, Off, Smart, Force }
 		public Dictionary<SowMode, Texture2D> iconCache = new Dictionary<SowMode, Texture2D>()
 		{ 
@@ -133,7 +134,7 @@ namespace SmartFarming
 		};
 		public float fertilityAverage, fertilityLow, averageGrowth, nutritionYield, nutritionCache;
 		public long minHarvestDay, minHarvestDayForNewlySown;
-		public bool noPettyJobs, allowHarvest = true;
+		public bool noPettyJobs, allowHarvest = true, alwaysSow = false;
 		public Command_Action sowGizmo = default(Command_Action);
 		public Command_Action priorityGizmo = default(Command_Action);
 		public Command_Toggle pettyJobsGizmo = default(Command_Toggle);

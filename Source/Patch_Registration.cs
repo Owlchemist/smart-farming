@@ -15,7 +15,7 @@ namespace SmartFarming
 			if
             (
                 growZone != null && //Is a grow zone?
-                compCache.TryGetValue(growZone.Map, out MapComponent_SmartFarming comp) && //Can find map component?
+                compCache.TryGetValue(growZone.Map?.uniqueID ?? -1, out MapComponent_SmartFarming comp) && //Can find map component?
 			    !comp.growZoneRegistry.ContainsKey(__instance.ID) //Zone data not yet made?
             )
             {
@@ -32,11 +32,7 @@ namespace SmartFarming
     {
         static void Prefix(Zone __instance)
         {
-			if (__instance is Zone_Growing)
-			{
-				var growZoneRegistry = compCache[__instance.Map].growZoneRegistry;
-				if (growZoneRegistry.ContainsKey(__instance.ID)) growZoneRegistry.Remove(__instance.ID);
-			}
+			if (__instance is Zone_Growing) compCache.TryGetValue(__instance.Map?.uniqueID ?? -1)?.growZoneRegistry?.Remove(__instance.ID);
         }
     }
 
@@ -46,7 +42,7 @@ namespace SmartFarming
     {
         static void Postfix(Zone_Growing __instance)
         {
-			compCache[__instance.Map].CalculateAll(__instance, true);
+			compCache[__instance.zoneManager.map.uniqueID].CalculateAll(__instance);
         }
     }
 
@@ -56,7 +52,7 @@ namespace SmartFarming
     {
         static void Postfix(Zone_Growing __instance)
         {
-			compCache[__instance.Map].CalculateAll(__instance);
+			compCache[__instance.zoneManager.map.uniqueID].CalculateAll(__instance);
         }
     }
 
@@ -66,7 +62,7 @@ namespace SmartFarming
     {
         static void Postfix(Zone __instance)
         {
-			if (__instance is Zone_Growing && __instance.cells.Count > 0) compCache[__instance.Map].CalculateAll((Zone_Growing)__instance);
+			if (__instance is Zone_Growing && __instance.cells.Count > 0) compCache[__instance.zoneManager.map.uniqueID].CalculateAll((Zone_Growing)__instance);
         }
     }
 

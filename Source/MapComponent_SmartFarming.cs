@@ -2,12 +2,10 @@ using Verse;
 using RimWorld;
 using System.Collections.Generic;
 using System.Linq;
-using Verse.Sound;
 using System;
 using static SmartFarming.Mod_SmartFarming;
 using static SmartFarming.ZoneData;
 using static SmartFarming.ModSettings_SmartFarming;
-using static SmartFarming.ResourceBank;
  
 namespace SmartFarming
 {
@@ -15,7 +13,7 @@ namespace SmartFarming
 	{
 		int ticks, currentDay, tile, hour, sunrise, sunset, lastMessageDay = -1;
 		public Dictionary<int, ZoneData> growZoneRegistry = new Dictionary<int, ZoneData>();
-		public float totalHungerRate, tempOffsetCache, latitude, longitudeTuning, baseTemperature, worldAverage, sunLow, sunHigh;
+		public float tempOffsetCache, latitude, longitudeTuning, baseTemperature, worldAverage, sunLow, sunHigh;
 		List<string> report = new List<string>();
 		RimWorld.Planet.World world;
 
@@ -29,8 +27,7 @@ namespace SmartFarming
 		public override void FinalizeInit()
 		{
 			//Quick cache
-			compCache.Add(map, this);
-			CalculateTotalHungerRate();
+			compCache.Add(map.uniqueID, this);
 
 			//Cache some frequently used getters that don't change
 			latitude = Find.WorldGrid.LongLatOf(map.Tile).x;
@@ -61,7 +58,7 @@ namespace SmartFarming
 				}
 			}
 
-			//Validate data
+			//Sanity check
 			var allValidZones = map.zoneManager.AllZones.Where(x => x is Zone_Growing).Select(y => y.ID);
 			foreach (var zoneData in growZoneRegistry.ToList())
 			{
@@ -76,16 +73,15 @@ namespace SmartFarming
 					zoneData.Value.Init(this, map.zoneManager.AllZones.FirstOrDefault(x => x.ID == zoneID) as Zone_Growing);
 				}
 			}
+
+			//Ensure the pawn cache is set
+			var tmp2 = this.map.mapPawns.FreeColonistsAndPrisoners;
 		}
 		
 		private void CalculateAverages(Zone_Growing zone, ZoneData zoneData)
 		{
-			int numOfCells = zone.cells.Count;
-			int numOfPlants = 0;
-			int newPlants = 0;
-			float fertility = 0f;
-			float lowestFertility = 99f;
-			float growth = 0f;
+			int numOfCells = zone.cells.Count, numOfPlants = 0, newPlants = 0;
+			float fertility = 0f, lowestFertility = 99f, growth = 0f;
 
 			for (int n = 0; n < numOfCells; ++n)
 			{
@@ -93,11 +89,11 @@ namespace SmartFarming
 				IntVec3 index = zone.cells[n];
 				float fertilityHere = map.fertilityGrid.FertilityAt(index);
 				fertility += fertilityHere;
-				if (fertilityHere < lowestFertility) lowestFertility = fertilityHere;
+				if (fertilityHere != 0f && fertilityHere < lowestFertility) lowestFertility = fertilityHere;
 
 				//Plant tally
-				Plant plant = map.thingGrid.ThingAt<Plant>(index);
-				if (plant != null && plant.def == zone.plantDefToGrow)
+				Plant plant = map.thingGrid.ThingAt(index, ThingCategory.Plant) as Plant;
+				if (plant != null && plant.def.index == zone.plantDefToGrow.index)
 				{
 					growth += plant.growthInt;
 					++numOfPlants;
@@ -113,13 +109,10 @@ namespace SmartFarming
 			zoneData.averageGrowth = (numOfPlants > 0) ? growth / numOfPlants : 0f;
 
 			//Process petty jobs since we already have all the data needed
-			if (zoneData.noPettyJobs)
+			if (zoneData.noPettyJobs && zoneData.sowMode != SowMode.Off)
 			{
-				if (zoneData.sowMode != SowMode.Off)
-				{
-					float validPlants = numOfPlants - newPlants;
-					zone.allowSow = !(validPlants > 0 && 1 - (validPlants / (float)numOfCells) < pettyJobs);
-				}
+				float validPlants = numOfPlants - newPlants;
+				zone.allowSow = !(validPlants > 0 && 1 - (validPlants / (float)numOfCells) < pettyJobs);
 			}
 			//If not using petty jobs, validate the sowmode
 			else zone.allowSow = zoneData.sowMode != SowMode.Off;
@@ -243,14 +236,16 @@ namespace SmartFarming
 			zoneData.nutritionYield = zoneData.nutritionCache * num;
 		}
 
-		public void CalculateTotalHungerRate()
+		public float CalculateTotalHungerRate()
 		{
-			totalHungerRate = 0; //Reset
-			foreach (Pawn pawn in map.mapPawns.FreeColonistsAndPrisoners)
+			float totalHungerRate = 0; //Reset
+			var pawns = map.mapPawns.freeColonistsAndPrisonersResult;
+			foreach (Pawn pawn in pawns)
 			{
-				totalHungerRate += (Need_Food.BaseHungerRate(pawn.ageTracker.CurLifeStage, pawn.def) * 60000f) * HungerCategory.Fed.HungerMultiplier() * pawn.health.hediffSet.GetHungerRateFactor(true ? null : HediffDefOf.Malnutrition) * 
+				totalHungerRate += (Need_Food.BaseHungerRate(pawn.ageTracker.CurLifeStage, pawn.def) * 60000f) * HungerCategory.Fed.HungerMultiplier() * pawn.health.hediffSet.GetHungerRateFactor(null) * 
 				(pawn.story?.traits?.HungerRateFactor ?? 1f);
 			}
+			return totalHungerRate;
 		}
 
 		public override void MapComponentTick()
@@ -262,10 +257,9 @@ namespace SmartFarming
 			}
 		}
 
-		public void ProcessZones(bool cacheNow = false)
+		public void ProcessZones()
 		{
 			UpdateCommonCache();
-			CalculateTotalHungerRate();
 
 			report.Clear();
 			foreach (Zone zone in map.zoneManager.AllZones)
@@ -280,12 +274,19 @@ namespace SmartFarming
 		{
 			if (growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData))
 			{
-				if (cacheNow) UpdateCommonCache();
+				if (cacheNow) UpdateCommonCache(); //The only method that calls this method with a false bool is the hourly update
 
 				CalculateAverages(zone, zoneData);
 				zoneData.minHarvestDay = CalculateDaysToHarvest(zone, zoneData, false);
 				zoneData.minHarvestDayForNewlySown = CalculateDaysToHarvest(zone, zoneData, true);
 				CalculateYield(zone, zoneData);
+
+				//Sanity check on alwaysSow in case settings were changed
+				if(coldSowing && zoneData.sowMode == SowMode.Smart && !zone.plantDefToGrow.plant.dieIfLeafless && 
+					(zone.plantDefToGrow.plant.forceIsTree || zone.plantDefToGrow.plant.harvestTag == "Wood") )
+				{
+					zoneData.alwaysSow = true;
+				}
 			}
 		}
 
@@ -303,7 +304,7 @@ namespace SmartFarming
 		{
 			ThingDef crop = zone?.plantDefToGrow;
 			if (crop == null) return 0;
-			Map map = zone.Map;
+			Map map = this.map;
 
 			int result = 0;
 			int length = zone.cells.Count;

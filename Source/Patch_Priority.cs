@@ -28,17 +28,16 @@ namespace SmartFarming
 		{
 			if (!(__instance is WorkGiver_Grower)) return;
 
-			var zone = pawn.Map.zoneManager.ZoneAt(t.Cell) as Zone_Growing;
+			Map map = pawn.Map;
+			var zone = map.zoneManager.zoneGrid[t.cellInt.z * map.info.sizeInt.x + t.cellInt.x] as Zone_Growing;
+			
 			if (zone == null) 
 			{
 				__result = 2f; //This would be a hydroponic
 				return;
 			}
-			
-			var comp = compCache.GetValueSafe(pawn.Map);
-			var zoneData = comp?.growZoneRegistry.GetValueSafe(zone.ID);
 
-			__result = (float)zoneData?.priority;
+			__result = (float)compCache.TryGetValue(map.uniqueID)?.growZoneRegistry?.TryGetValue(zone.ID)?.priority;
 		}
 	}
 
@@ -49,17 +48,28 @@ namespace SmartFarming
 		public static bool Prefix(object obj)
 		{
 			Zone zone = obj as Zone_Growing;
-			if (zone != null)
+			if (zone != null && (compCache.TryGetValue(zone.Map?.uniqueID ?? -1)?.growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData) ?? false))
 			{
-				var comp = compCache.GetValueSafe(zone.Map);
-				var zoneData = comp?.growZoneRegistry.GetValueSafe(zone.ID);
-				if (zoneData == null) return true;
-
-				Color color = Color.white;
-				if (zoneData.priority == SmartFarming.ZoneData.Priority.Low) color = Color.grey;
-				else if (zoneData.priority == SmartFarming.ZoneData.Priority.Preferred) color = Color.green;
-				else if (zoneData.priority == SmartFarming.ZoneData.Priority.Important) color = Color.yellow;
-				else if (zoneData.priority == SmartFarming.ZoneData.Priority.Critical) color = Color.red;
+				Color color;
+				switch (zoneData.priority)
+				{
+					case SmartFarming.ZoneData.Priority.Low: {
+						color = ResourceBank.grey; break;
+					}
+					case SmartFarming.ZoneData.Priority.Preferred: {
+						color = ResourceBank.green; break;
+					}
+					case SmartFarming.ZoneData.Priority.Important: {
+						color = ResourceBank.yellow; break;
+					}
+					case SmartFarming.ZoneData.Priority.Critical: {
+						color = ResourceBank.red; break;
+					}
+					default: {
+						color = ResourceBank.white;
+						break;
+					}
+				}
 				
 				GenDraw.DrawFieldEdges(zone.Cells, color, null);
 				return false;
