@@ -93,7 +93,7 @@ namespace SmartFarming
 
 				//Plant tally
 				Plant plant = map.thingGrid.ThingAt(index, ThingCategory.Plant) as Plant;
-				if (plant != null && plant.def.index == zone.plantDefToGrow.index)
+				if (plant != null && plant.def.index == zone.plantDefToGrow?.index)
 				{
 					growth += plant.growthInt;
 					++numOfPlants;
@@ -151,7 +151,7 @@ namespace SmartFarming
 			{
 				string reportPrint = simulationReport.Count > 0 ? ("\n" + string.Join("\n", simulationReport)) : "skipped";
 				report.Add(" - " + (forSowing ? "new sowing ": "") + "report for " + 
-					zone.Position.ToString()  + " (" + zone.plantDefToGrow.defName + ") : " + reportPrint);
+					zone.Position.ToString()  + " (" + zone.plantDefToGrow?.defName + ") : " + reportPrint);
 			} 
 
 			return simulatedGrowth == -1 ? -1 : (numOfDays * 60000) + Find.TickManager.TicksAbs;
@@ -282,7 +282,7 @@ namespace SmartFarming
 				CalculateYield(zone, zoneData);
 
 				//Sanity check on alwaysSow in case settings were changed
-				if(coldSowing && zoneData.sowMode == SowMode.Smart && !zone.plantDefToGrow.plant.dieIfLeafless && 
+				if(coldSowing && zoneData.sowMode == SowMode.Smart && zone.plantDefToGrow != null && !zone.plantDefToGrow.plant.dieIfLeafless && 
 					(zone.plantDefToGrow.plant.forceIsTree || zone.plantDefToGrow.plant.harvestTag == "Wood") )
 				{
 					zoneData.alwaysSow = true;

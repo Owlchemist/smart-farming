@@ -47,10 +47,11 @@ namespace SmartFarming
 
                 //Harvest now gizmo
                 ThingDef crop = __instance.plantDefToGrow;
+                if (crop == null) yield break;
                 foreach (IntVec3 cell in __instance.cells)
                 {
-                    Plant plant = map.thingGrid.ThingAt<Plant>(cell);
-                    if (plant?.def == crop && crop.plant.harvestedThingDef != null && plant.Growth >= crop.plant.harvestMinGrowth)
+                    Thing plant = map.thingGrid.ThingAt(cell, ThingCategory.Plant);
+                    if (plant?.def == crop && crop.plant.harvestedThingDef != null && ((Plant)plant).Growth >= crop.plant.harvestMinGrowth)
                     {
                         yield return zoneData.harvestGizmo;
                         break;
@@ -93,6 +94,7 @@ namespace SmartFarming
 
     //This controls whether or not pawns will skip sow jobs based on the seasonable allowance
     [HarmonyPatch (typeof(PlantUtility), nameof(PlantUtility.GrowthSeasonNow))]
+    [HarmonyPriority(HarmonyLib.Priority.Last)]
     static class Patch_GrowthSeasonNow
     {
         static bool Prefix(Map map, ref bool __result, IntVec3 c, bool forSowing)
@@ -145,7 +147,7 @@ namespace SmartFarming
                 if (totalHungerRate == -1f || Find.TickManager.TicksGame % 480 == 0) totalHungerRate = mapComp.CalculateTotalHungerRate();
 
                 StringBuilder builder = new StringBuilder(__result, 10);
-                if (zoneData.averageGrowth < __instance.plantDefToGrow.plant.harvestMinGrowth)
+                if (zoneData.averageGrowth < __instance.plantDefToGrow?.plant.harvestMinGrowth)
                 {
                     if (zoneData.minHarvestDay > 0){
                         builder.Append(ResourceBank.minHarvestDay);
