@@ -1,10 +1,11 @@
 using UnityEngine;
 using Verse;
+using RimWorld;
  
 namespace SmartFarming
 {
 	[StaticConstructorOnStartup]
-	internal static class ResourceBank
+	public static class ResourceBank
 	{
 		public static readonly Texture2D sowIconOn = ContentFinder<Texture2D>.Get("UI/Owl_Sow", true);
 		public static readonly Texture2D sowIconOff = ContentFinder<Texture2D>.Get("UI/Owl_NoSow", true);
@@ -24,5 +25,11 @@ namespace SmartFarming
 		public static readonly Color green = Color.green;
 		public static readonly Color yellow = Color.yellow;
 		public static readonly Color red = Color.red;
+
+		[DefOf]
+		public static class WorkGiverDefOf
+        {
+            public static WorkGiverDef GrowerHarvest;
+        }
 	}
 }

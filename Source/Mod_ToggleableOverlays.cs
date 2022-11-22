@@ -13,8 +13,8 @@ namespace SmartFarming
 
 		public Mod_SmartFarming(ModContentPack content) : base(content)
 		{
-			new Harmony(this.Content.PackageIdPlayerFacing).PatchAll();
 			base.GetSettings<ModSettings_SmartFarming>();
+			new Harmony(this.Content.PackageIdPlayerFacing).PatchAll();
 		}
 
 		public override void DoSettingsWindowContents(Rect inRect)
@@ -72,11 +72,11 @@ namespace SmartFarming
 			Scribe_Values.Look<float>(ref processedFoodFactor, "processedFoodFactor", 1.8f, false);
 			Scribe_Values.Look<float>(ref minTempAllowed, "minTempAllowed", -3f, false);
 			Scribe_Values.Look<float>(ref pettyJobs, "pettyJobs", 0.2f, false);
-			Scribe_Values.Look<bool>(ref allowHarvestOption, "allowHarvestOption", true, false);
+			Scribe_Values.Look<bool>(ref allowHarvestOption, "allowHarvestOption", false, false);
 
 			base.ExposeData();
 		}
-		public static bool useAverageFertility, autoCutBlighted = true, autoCutDying = true, logging, coldSowing = true, autoHarvestNow = true, allowHarvestOption = true;
+		public static bool useAverageFertility, autoCutBlighted = true, autoCutDying = true, logging, coldSowing = true, autoHarvestNow = true, allowHarvestOption = false;
 		public static float processedFoodFactor = 1.8f, pettyJobs = 0.2f, minTempAllowed = -3f;
 	}
 }

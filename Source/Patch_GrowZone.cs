@@ -43,7 +43,7 @@ namespace SmartFarming
                 //Petty jobs gizmo
                 yield return zoneData.pettyJobsGizmo;
                 //Allow harvest gizmo
-                if (allowHarvestOption) yield return zoneData.allowHarvestGizmo;
+                if (AllowHarvest.allowHarvestGizmoPatched) yield return zoneData.allowHarvestGizmo;
 
                 //Harvest now gizmo
                 ThingDef crop = __instance.plantDefToGrow;
@@ -97,7 +97,7 @@ namespace SmartFarming
     [HarmonyPriority(HarmonyLib.Priority.Last)]
     static class Patch_GrowthSeasonNow
     {
-        static bool Prefix(Map map, ref bool __result, IntVec3 c, bool forSowing)
+        static bool Prefix(ref bool __result, Map map, IntVec3 c, bool forSowing)
         {
             if (forSowing)
             {
@@ -173,9 +173,9 @@ namespace SmartFarming
 
     //This is for the "auto cut blighted" mod option
     [HarmonyPatch (typeof(Plant), nameof(Plant.CropBlighted))]
-	public static class Patch_CropBlighted
+	static class AutoCutIfBlighted
 	{
-		public static void Postfix(Plant __instance)
+		static void Postfix(Plant __instance)
 		{
 			Map map = __instance.Map;
             if (autoCutBlighted && map.designationManager.DesignationOn(__instance, DesignationDefOf.CutPlant) == null)
@@ -187,11 +187,16 @@ namespace SmartFarming
 
     //This is for the "auto cut if dying" mod option
     [HarmonyPatch (typeof(Plant), nameof(Plant.MakeLeafless))]
-	public static class Patch_MakeLeafless
+	static class AutoCutIfDying
 	{
-		public static void Prefix(Plant __instance)
+        static bool Prepare()
+        {
+            return autoCutDying;
+        }
+
+		static void Prefix(Plant __instance)
 		{
-            if (autoCutDying && __instance.def.plant.dieIfLeafless)
+            if (__instance.def.plant.dieIfLeafless)
             {
                 Map map = __instance.Map;
                 compCache.TryGetValue(map.uniqueID)?.HarvestNow(map.zoneManager.zoneGrid[__instance.positionInt.z * map.info.sizeInt.x + __instance.positionInt.x] as Zone_Growing);
@@ -201,20 +206,28 @@ namespace SmartFarming
 
     //This is for the "allow harvest" gizmo
     [HarmonyPatch(typeof(WorkGiver_GrowerHarvest), nameof(WorkGiver_GrowerHarvest.HasJobOnCell))]
-	internal static class Patch_WorkGiver_GrowerHarvest
+	static class AllowHarvest
 	{
-		private static bool Prefix(Pawn pawn, IntVec3 c)
+        public static bool allowHarvestGizmoPatched = false;
+        static bool Prepare()
+        {
+            allowHarvestGizmoPatched = allowHarvestOption;
+            return allowHarvestOption;
+        }
+		static bool Prefix(Pawn pawn, IntVec3 c)
 		{
-            if (!allowHarvestOption) return true;
             Map map = pawn?.Map;
 
-            Zone_Growing zone = map?.zoneManager.zoneGrid[c.z * map.info.sizeInt.x + c.x] as Zone_Growing;
-            if (zone == null) return true;
+            //We don't check the zone type because it's faster for the collection lookup to return with nothing than it is to cast the zone
+            int zoneID = map?.zoneManager.zoneGrid[c.z * map.info.sizeInt.x + c.x]?.ID ?? -1;
+            if (zoneID == -1) return true;
 
-            var zoneData = compCache?.TryGetValue(map.uniqueID)?.growZoneRegistry?.TryGetValue(zone.ID);
-            if (zoneData == null) return true;
+            if (compCache.TryGetValue(map.uniqueID, out MapComponent_SmartFarming mapComp) && mapComp.growZoneRegistry.TryGetValue(zoneID, out ZoneData zoneData))
+            {
+                return zoneData.allowHarvest;
+            }
 
-            return zoneData.allowHarvest;
+            return true;
 		}
 	}
 }

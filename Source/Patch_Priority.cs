@@ -9,35 +9,31 @@ namespace SmartFarming
 {
 	//This tells the workgiver that growing is a priority-enabled job
 	[HarmonyPatch(typeof(WorkGiver_Scanner), nameof(WorkGiver_Scanner.Prioritized), MethodType.Getter)]
-	public static class Patch_WorkGiver_Scanner
+	public static class Patch_WorkGiver_Scanner_Prioritized
 	{
-		public static bool Prefix(ref bool __result, ref WorkGiver_Scanner __instance)
+		public static bool Postfix(bool __result, WorkGiver_Scanner __instance)
 		{
-			if (!(__instance is WorkGiver_Grower)) return true;
-
-			__result = true;
-			return false;
+			return __instance.def == ResourceBank.WorkGiverDefOf.GrowerHarvest;
 		}
 	}
 
 	//This returns the priority value (higher = more urgent)
 	[HarmonyPatch(typeof(WorkGiver_Scanner), nameof(WorkGiver_Scanner.GetPriority), new Type[] { typeof(Pawn), typeof(TargetInfo) })]
-	public static class GetPriorityPatcher
+	public static class Patch_WorkGiver_Scanner_GetPriority
 	{
-		public static void Postfix(Pawn pawn, TargetInfo t, ref float __result, WorkGiver_Scanner __instance)
+		public static float Postfix(float __result, Pawn pawn, TargetInfo t, WorkGiver_Scanner __instance)
 		{
-			if (!(__instance is WorkGiver_Grower)) return;
+			if (__instance.def != ResourceBank.WorkGiverDefOf.GrowerHarvest) return __result;
 
 			Map map = pawn.Map;
 			var zone = map.zoneManager.zoneGrid[t.cellInt.z * map.info.sizeInt.x + t.cellInt.x] as Zone_Growing;
 			
 			if (zone == null) 
 			{
-				__result = 2f; //This would be a hydroponic
-				return;
+				return 2f; //This would be a hydroponic
 			}
 
-			__result = (float)compCache.TryGetValue(map.uniqueID)?.growZoneRegistry?.TryGetValue(zone.ID)?.priority;
+			return (float)compCache.TryGetValue(map.uniqueID)?.growZoneRegistry.TryGetValue(zone.ID)?.priority;
 		}
 	}
 
