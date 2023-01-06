@@ -57,10 +57,13 @@ namespace SmartFarming
                         break;
                     }
                 }
+
+                //Orchard align?
+                if (orchardAlignment && crop.plant.blockAdjacentSow) yield return zoneData.orchardGizmo;
             }
         }
 
-        static IEnumerable<Gizmo> GetMultiZoneGizmos(MapComponent_SmartFarming comp, ZoneData zoneData, Zone_Growing thizZone)
+        static IEnumerable<Gizmo> GetMultiZoneGizmos(MapComponent_SmartFarming comp, ZoneData zoneData, Zone_Growing thisZone)
         {
             ZoneData basisZone = zoneData;
             foreach (var zone in Find.Selector.selected)
@@ -79,7 +82,7 @@ namespace SmartFarming
                 defaultDesc = basisZone.sowGizmo.defaultDesc,
                 hotKey = KeyBindingDefOf.Command_ItemForbid,
                 icon = basisZone.iconCache[basisZone.sowMode],
-                action = () => zoneData.SwitchSowMode(comp, thizZone, basisZone.sowMode)
+                action = () => zoneData.SwitchSowMode(comp, thisZone, basisZone.sowMode)
             };
             yield return new Command_Action()
             {
@@ -137,14 +140,24 @@ namespace SmartFarming
     [HarmonyPatch (typeof(Zone_Growing), nameof(Zone_Growing.GetInspectString))]
     static class Patch_GetInspectString
     {
-        static float totalHungerRate = -1f;
+        static float totalHungerRate = 0f;
         static string Postfix(string __result, Zone_Growing __instance)
         {
             Map map = __instance.Map;
             if (compCache.TryGetValue(map.uniqueID, out MapComponent_SmartFarming mapComp) && mapComp.growZoneRegistry.TryGetValue(__instance.ID, out ZoneData zoneData))
             {
                 //Update the hunger cache only when it's being viewed
-                if (totalHungerRate == -1f || Find.TickManager.TicksGame % 480 == 0) totalHungerRate = mapComp.CalculateTotalHungerRate();
+                if (totalHungerRate == 0f || Find.TickManager.TicksGame % 480 == 0) {
+                    try
+                    {
+                        totalHungerRate = mapComp.CalculateTotalHungerRate();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning("[Smart Farming] Error calculating hunger rate" + ex);
+                        totalHungerRate = 1f;
+                    }
+                }
 
                 StringBuilder builder = new StringBuilder(__result, 10);
                 if (zoneData.averageGrowth < __instance.plantDefToGrow?.plant.harvestMinGrowth)

@@ -15,21 +15,20 @@ namespace SmartFarming
 			fertilityAverage = 1f;
 			priority = Priority.Normal;
 		}
-
 		public void ExposeData()
 		{
-			Scribe_Values.Look<SowMode>(ref sowMode, "sowMode", 0, false);
-			Scribe_Values.Look<Priority>(ref priority, "priority", Priority.Normal, false);
-			Scribe_Values.Look<float>(ref fertilityAverage, "averageFertility", 1f, false);
-			Scribe_Values.Look<float>(ref fertilityLow, "fertilityLow", 1f, false);
-			Scribe_Values.Look<float>(ref averageGrowth, "averageGrowth", 0f, false);
-			Scribe_Values.Look<long>(ref minHarvestDay, "minHarvestDay", 0, false);
-			Scribe_Values.Look<long>(ref minHarvestDayForNewlySown, "minHarvestDayForNewlySown", 0, false);
-			Scribe_Values.Look<float>(ref nutritionYield, "nutritionYield", 0, false);
-			Scribe_Values.Look<bool>(ref noPettyJobs, "pettyJobs", false, false);
-			Scribe_Values.Look<bool>(ref allowHarvest, "allowHarvest", true, false);
+			Scribe_Values.Look<SowMode>(ref sowMode, "sowMode", 0);
+			Scribe_Values.Look<Priority>(ref priority, "priority", Priority.Normal);
+			Scribe_Values.Look<float>(ref fertilityAverage, "averageFertility", 1f);
+			Scribe_Values.Look<float>(ref fertilityLow, "fertilityLow", 1f);
+			Scribe_Values.Look<float>(ref averageGrowth, "averageGrowth", 0f);
+			Scribe_Values.Look<long>(ref minHarvestDay, "minHarvestDay", 0);
+			Scribe_Values.Look<long>(ref minHarvestDayForNewlySown, "minHarvestDayForNewlySown", 0);
+			Scribe_Values.Look<float>(ref nutritionYield, "nutritionYield", 0);
+			Scribe_Values.Look<bool>(ref noPettyJobs, "pettyJobs");
+			Scribe_Values.Look<bool>(ref allowHarvest, "allowHarvest", true);
+			Scribe_Values.Look<bool>(ref orchardAlignment, "orchardAlignment");
 		}
-
 		public void Init(MapComponent_SmartFarming comp, Zone_Growing zone)
 		{
 			sowGizmo = new Command_Action()
@@ -73,9 +72,20 @@ namespace SmartFarming
 					icon = ResourceBank.iconHarvest,
 					action = () => comp.HarvestNow(zone, roofCheck: false)
 				};
+			orchardGizmo = new Command_Toggle
+				{
+					defaultLabel = "SmartFarming.Icon.OrchardAlignment".Translate(),
+					defaultDesc = "SmartFarming.Icon.OrchardAlignment.Desc".Translate(),
+					icon = ResourceBank.orchardAlignment,
+					isActive = (() => orchardAlignment),
+					toggleAction = delegate()
+					{
+						orchardAlignment = !orchardAlignment;
+					}
+				};
 			UpdateGizmos();
+			CalculateCornerCell(zone);
 		}
-
 		public void SwitchSowMode(MapComponent_SmartFarming comp, Zone_Growing zone, SowMode? hardSet = null)
 		{
 			SoundDefOf.Click.PlayOneShotOnCamera(null);
@@ -103,7 +113,6 @@ namespace SmartFarming
 			}
 			UpdateGizmos();
 		}
-
 		public void SwitchPriority(Priority? hardSet = null)
 		{
 			SoundDefOf.Click.PlayOneShotOnCamera(null);
@@ -113,7 +122,6 @@ namespace SmartFarming
 			priority = priority != Priority.Critical ? ++priority : Priority.Low;
 			UpdateGizmos();
 		}
-
 		void UpdateGizmos()
 		{
 			sowGizmo.defaultLabel = ("SmartFarming.Icon." + sowMode.ToString()).Translate();
@@ -122,7 +130,17 @@ namespace SmartFarming
 
 			priorityGizmo.defaultLabel = ("SmartFarming.Icon." + priority.ToString()).Translate();
 		}
-
+		public void CalculateCornerCell(Zone_Growing zone)
+		{
+			int southMost = Int16.MaxValue, westMost = Int16.MaxValue;
+			foreach (var cell in zone.cells)
+			{
+				if (cell.x < southMost) southMost = cell.x;
+				if (cell.z < westMost) westMost = cell.z;
+			}
+			this.cornerCell = new IntVec3(southMost, 0 , westMost);
+		}
+		
 		public Priority priority; public enum Priority { Low = 1, Normal, Preferred, Important, Critical}
 		public SowMode sowMode; public enum SowMode { On, Off, Smart, Force }
 		public Dictionary<SowMode, Texture2D> iconCache = new Dictionary<SowMode, Texture2D>()
@@ -134,11 +152,13 @@ namespace SmartFarming
 		};
 		public float fertilityAverage, fertilityLow, averageGrowth, nutritionYield, nutritionCache;
 		public long minHarvestDay, minHarvestDayForNewlySown;
-		public bool noPettyJobs, allowHarvest = true, alwaysSow = false;
+		public bool noPettyJobs, allowHarvest = true, alwaysSow = false, orchardAlignment;
 		public Command_Action sowGizmo = default(Command_Action);
 		public Command_Action priorityGizmo = default(Command_Action);
 		public Command_Toggle pettyJobsGizmo = default(Command_Toggle);
 		public Command_Toggle allowHarvestGizmo = default(Command_Toggle);
 		public Command_Action harvestGizmo = default(Command_Action);
+		public Command_Toggle orchardGizmo = default(Command_Toggle);
+		public IntVec3 cornerCell;
 	}
 }

@@ -9,9 +9,11 @@
 	<SmartFarming.Icon.Force>Force</SmartFarming.Icon.Force>
 	<SmartFarming.Icon.Force.Desc>Sow plants regardless of grow season status.</SmartFarming.Icon.Force.Desc>
 	<SmartFarming.Icon.HarvestNow>Harvest now</SmartFarming.Icon.HarvestNow>
-	<SmartFarming.Icon.HarvestNow.Desc>Designate all plants in this zone for harvesting, even if they're not fully grown yet.</SmartFarming.Icon.HarvestNow.Desc>
+	<SmartFarming.Icon.HarvestNow.Desc>Designate all plants in this zone for harvesting, even if they are not fully grown yet.</SmartFarming.Icon.HarvestNow.Desc>
 	<SmartFarming.Icon.AllowHarvest>Allow harvest</SmartFarming.Icon.AllowHarvest>
 	<SmartFarming.Icon.AllowHarvest.Desc>Turn this off to forbid pawns from harvesting this zone.</SmartFarming.Icon.AllowHarvest.Desc>
+	<SmartFarming.Icon.OrchardAlignment>Align plants</SmartFarming.Icon.OrchardAlignment>
+	<SmartFarming.Icon.OrchardAlignment.Desc>For plants that need a clearance zone, such as trees, pawns will try to align them in rows. This may not work well for oddly shaped zones.</SmartFarming.Icon.OrchardAlignment.Desc>
 	
 	<SmartFarming.Icon.Low>Low</SmartFarming.Icon.Low>
 	<SmartFarming.Icon.Normal>Normal</SmartFarming.Icon.Normal>
@@ -43,10 +45,13 @@
 	
 	<SmartFarming.Settings.AutoHarvestNow>Harvest early if threatened</SmartFarming.Settings.AutoHarvestNow>
 	<SmartFarming.Settings.AutoHarvestNow.Desc>If tonight's weather is going to be deadly cold, designate all plants for an immediate harvest.</SmartFarming.Settings.AutoHarvestNow.Desc>
-	<SmartFarming.Message.AutoHarvestNow>Plants desiginated for an early harvest due tonight's forecasted weather.</SmartFarming.Message.AutoHarvestNow>
+	<SmartFarming.Message.AutoHarvestNow>Plants designated for an early harvest due tonight's forecasted weather.</SmartFarming.Message.AutoHarvestNow>
+	
+	<SmartFarming.Settings.OrchardAlignment>Alignment gizmo</SmartFarming.Settings.OrchardAlignment>
+	<SmartFarming.Settings.OrchardAlignment.Desc>Enables a gizmo that prompts pawns to plant trees in careful rows.</SmartFarming.Settings.OrchardAlignment.Desc>
 	
 	<SmartFarming.Settings.AutoCutDying>Automatically try to harvest dying crops</SmartFarming.Settings.AutoCutDying>
-	<SmartFarming.Settings.AutoCutDying.Desc>If a crop dies to the cold, try to automatically harvest any surviving crops before it's too late. Changing this requires a game restart.</SmartFarming.Settings.AutoCutDying.Desc>
+	<SmartFarming.Settings.AutoCutDying.Desc>If a crop dies to the cold, try to automatically harvest any surviving crops before it is too late. Changing this requires a game restart.</SmartFarming.Settings.AutoCutDying.Desc>
 	
 	<SmartFarming.Settings.ProcessedFood.Desc>When grow zones give an estimated potential nutrition yield, it multiplies the raw food's nutrition by this value. For reference, a Simple Meal multiplies the value by 1.8, Fine Meals by 1.2, and Lavish Meals by 1.0.</SmartFarming.Settings.ProcessedFood.Desc>
 	

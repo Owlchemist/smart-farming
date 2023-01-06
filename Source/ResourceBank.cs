@@ -14,6 +14,7 @@ namespace SmartFarming
 		public static readonly Texture2D iconPriority = ContentFinder<Texture2D>.Get("UI/Owl_Priority", true);
 		public static readonly Texture2D allowHarvest =  ContentFinder<Texture2D>.Get("UI/Owl_AllowHarvest", true);
 		public static readonly Texture2D iconHarvest =  ContentFinder<Texture2D>.Get("UI/Designators/Harvest", true);
+		public static readonly Texture2D orchardAlignment =  ContentFinder<Texture2D>.Get("UI/Owl_Orchard", true);
 
 		public static readonly string minHarvestDay = "SmartFarming.Inspector.MinHarvestDay".Translate();
 		public static readonly string minHarvestDayFail = "SmartFarming.Inspector.MinHarvestDayFail".Translate();
@@ -25,11 +26,5 @@ namespace SmartFarming
 		public static readonly Color green = Color.green;
 		public static readonly Color yellow = Color.yellow;
 		public static readonly Color red = Color.red;
-
-		[DefOf]
-		public static class WorkGiverDefOf
-        {
-            public static WorkGiverDef GrowerHarvest;
-        }
 	}
 }

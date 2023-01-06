@@ -3,6 +3,8 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Reflection.Emit;
 using static SmartFarming.Mod_SmartFarming;
 
 namespace SmartFarming
@@ -13,7 +15,7 @@ namespace SmartFarming
 	{
 		public static bool Postfix(bool __result, WorkGiver_Scanner __instance)
 		{
-			return __instance.def == ResourceBank.WorkGiverDefOf.GrowerHarvest;
+			return agriWorkTypes.Contains(__instance.def.index);
 		}
 	}
 
@@ -23,7 +25,7 @@ namespace SmartFarming
 	{
 		public static float Postfix(float __result, Pawn pawn, TargetInfo t, WorkGiver_Scanner __instance)
 		{
-			if (__instance.def != ResourceBank.WorkGiverDefOf.GrowerHarvest) return __result;
+			if (!agriWorkTypes.Contains(__instance.def.index)) return __result;
 
 			Map map = pawn.Map;
 			var zone = map.zoneManager.zoneGrid[t.cellInt.z * map.info.sizeInt.x + t.cellInt.x] as Zone_Growing;
@@ -33,7 +35,11 @@ namespace SmartFarming
 				return 2f; //This would be a hydroponic
 			}
 
-			return (float)compCache.TryGetValue(map.uniqueID)?.growZoneRegistry.TryGetValue(zone.ID)?.priority;
+			if (compCache.TryGetValue(map.uniqueID, out MapComponent_SmartFarming mapComp) && mapComp.growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData))
+			{
+				return (float)zoneData.priority;
+			}
+			return __result;
 		}
 	}
 
@@ -41,36 +47,27 @@ namespace SmartFarming
 	[HarmonyPatch(typeof(SelectionDrawer), nameof(SelectionDrawer.DrawSelectionBracketFor))]
 	public static class Patch_DrawSelectionBracketFor
 	{
-		public static bool Prefix(object obj)
-		{
-			Zone zone = obj as Zone_Growing;
-			if (zone != null && (compCache.TryGetValue(zone.Map?.uniqueID ?? -1)?.growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData) ?? false))
+		static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+			bool ran = false;
+			bool skipOriginal = false;
+			foreach (var code in instructions)
 			{
-				Color color;
-				switch (zoneData.priority)
+				if (ran && !skipOriginal)
 				{
-					case SmartFarming.ZoneData.Priority.Low: {
-						color = ResourceBank.grey; break;
-					}
-					case SmartFarming.ZoneData.Priority.Preferred: {
-						color = ResourceBank.green; break;
-					}
-					case SmartFarming.ZoneData.Priority.Important: {
-						color = ResourceBank.yellow; break;
-					}
-					case SmartFarming.ZoneData.Priority.Critical: {
-						color = ResourceBank.red; break;
-					}
-					default: {
-						color = ResourceBank.white;
-						break;
-					}
+					skipOriginal = true;
+					continue;
 				}
-				
-				GenDraw.DrawFieldEdges(zone.Cells, color, null);
-				return false;
+				yield return code;
+				if (!ran && code.opcode == OpCodes.Callvirt && code.OperandIs(AccessTools.Property(typeof(Zone), nameof(Zone.Cells)).GetGetMethod()))
+                {
+                    yield return new CodeInstruction(OpCodes.Ldloc_0);
+					yield return new CodeInstruction(OpCodes.Call, typeof(MapComponent_SmartFarming).GetMethod(nameof(MapComponent_SmartFarming.DrawFieldEdges)));
+
+                    ran = true;
+                }
 			}
-			return true;
-		}
+			if (!ran) Log.Warning("[Smart Farming] Transpiler could not find target for field edge drawer. There may be a mod conflict, or RimWorld updated?");
+        }
 	}
 }

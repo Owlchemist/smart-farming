@@ -27,7 +27,15 @@ namespace SmartFarming
 		public override void FinalizeInit()
 		{
 			//Quick cache
-			compCache.Add(map.uniqueID, this);
+			try
+			{
+				compCache.Add(map.uniqueID, this);
+			}
+			catch (System.Exception ex)
+			{
+				Log.Message("[Smart Farming] Tried to register a component on a map that already was registered. Did the cache not flush properly? " + ex);
+			}
+			
 
 			//Cache some frequently used getters that don't change
 			latitude = Find.WorldGrid.LongLatOf(map.Tile).x;
@@ -239,7 +247,7 @@ namespace SmartFarming
 		public float CalculateTotalHungerRate()
 		{
 			float totalHungerRate = 0; //Reset
-			var pawns = map.mapPawns.freeColonistsAndPrisonersResult;
+			var pawns = map.mapPawns.FreeColonistsAndPrisoners;
 			foreach (Pawn pawn in pawns)
 			{
 				totalHungerRate += (Need_Food.BaseHungerRate(pawn.ageTracker.CurLifeStage, pawn.def) * 60000f) * HungerCategory.Fed.HungerMultiplier() * pawn.health.hediffSet.GetHungerRateFactor(null) * 
@@ -274,6 +282,13 @@ namespace SmartFarming
 		{
 			if (growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData))
 			{
+				//Sanity check
+				if (map == null || map.gameConditionManager == null)
+				{
+					Log.Message("[Smart Farming] Tried to process an unknown zone.");
+					return;
+				}
+
 				if (cacheNow) UpdateCommonCache(); //The only method that calls this method with a false bool is the hourly update
 
 				CalculateAverages(zone, zoneData);
@@ -324,6 +339,37 @@ namespace SmartFarming
 				}
 			}
 			return result;
+		}
+
+		public static void DrawFieldEdges(List<IntVec3> cells, Zone zone)
+		{
+			if (zone is Zone_Growing gZone && 
+				compCache.TryGetValue(Find.CurrentMap?.uniqueID ?? -1, out MapComponent_SmartFarming mapComp) && 
+				mapComp.growZoneRegistry.TryGetValue(gZone.ID, out ZoneData zoneData))
+			{
+				UnityEngine.Color color;
+				switch (zoneData.priority)
+				{
+					case SmartFarming.ZoneData.Priority.Low: {
+						color = ResourceBank.grey; break;
+					}
+					case SmartFarming.ZoneData.Priority.Preferred: {
+						color = ResourceBank.green; break;
+					}
+					case SmartFarming.ZoneData.Priority.Important: {
+						color = ResourceBank.yellow; break;
+					}
+					case SmartFarming.ZoneData.Priority.Critical: {
+						color = ResourceBank.red; break;
+					}
+					default: {
+						color = ResourceBank.white; break;
+					}
+				}
+				
+				GenDraw.DrawFieldEdges(cells, color, null);
+			}
+			GenDraw.DrawFieldEdges(cells);
 		}
 	}
 }
