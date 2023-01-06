@@ -2,7 +2,6 @@ using System;
 using HarmonyLib;
 using RimWorld;
 using Verse;
-using UnityEngine;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 using static SmartFarming.Mod_SmartFarming;
@@ -15,7 +14,7 @@ namespace SmartFarming
 	{
 		public static bool Postfix(bool __result, WorkGiver_Scanner __instance)
 		{
-			return agriWorkTypes.Contains(__instance.def.index);
+			return (agriWorkTypes.Contains(__instance.def.index)) ? true : __result;
 		}
 	}
 

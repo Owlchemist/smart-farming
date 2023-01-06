@@ -21,10 +21,6 @@ namespace SmartFarming
 		public static readonly string averageGrowth = "SmartFarming.Inspector.AverageGrowth".Translate();
 		public static readonly string yield = "SmartFarming.Inspector.Yield".Translate();
 
-		public static readonly Color white = Color.white;
-		public static readonly Color grey = Color.grey;
-		public static readonly Color green = Color.green;
-		public static readonly Color yellow = Color.yellow;
-		public static readonly Color red = Color.red;
+		public static readonly Color white = Color.white, grey = Color.grey, green = Color.green, yellow = Color.yellow, red = Color.red;
 	}
 }
