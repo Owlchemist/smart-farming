@@ -48,8 +48,11 @@ namespace SmartFarming
                 //Harvest now gizmo
                 ThingDef crop = __instance.plantDefToGrow;
                 if (crop == null) yield break;
-                foreach (IntVec3 cell in __instance.cells)
+                
+                var length = __instance.cells.Count;
+                for (int i = 0; i < length; i++)
                 {
+                    var cell = __instance.cells[i];
                     Thing plant = map.thingGrid.ThingAt(cell, ThingCategory.Plant);
                     if (plant?.def == crop && crop.plant.harvestedThingDef != null && ((Plant)plant).Growth >= crop.plant.harvestMinGrowth)
                     {
@@ -65,32 +68,42 @@ namespace SmartFarming
 
         static IEnumerable<Gizmo> GetMultiZoneGizmos(MapComponent_SmartFarming comp, ZoneData zoneData, Zone_Growing thisZone)
         {
-            ZoneData basisZone = zoneData;
+            ZoneData basisZoneData = zoneData;
+            Zone_Growing basisZone = null;
             foreach (var zone in Find.Selector.selected)
             {
-                Zone_Growing growZone = zone as Zone_Growing;
-                if (growZone != null && comp.growZoneRegistry.TryGetValue(growZone.ID, out ZoneData tmp))
+                if (zone is Zone_Growing growZone && comp.growZoneRegistry.TryGetValue(growZone.ID, out basisZoneData))
                 {
-                    basisZone = tmp;
+                    basisZone = growZone;
                     break;
                 }
             }
             
             yield return new Command_Action()
             {
-                defaultLabel = ("SmartFarming.Icon.SetAll".Translate() + basisZone.sowGizmo.defaultLabel.ToLower()),
-                defaultDesc = basisZone.sowGizmo.defaultDesc,
+                defaultLabel = ("SmartFarming.Icon.SetAll".Translate() + basisZoneData.sowGizmo.defaultLabel.ToLower()),
+                defaultDesc = basisZoneData.sowGizmo.defaultDesc,
                 hotKey = KeyBindingDefOf.Command_ItemForbid,
-                icon = basisZone.iconCache[basisZone.sowMode],
-                action = () => zoneData.SwitchSowMode(comp, thisZone, basisZone.sowMode)
+                icon = basisZoneData.iconCache[basisZoneData.sowMode],
+                action = () => zoneData.SwitchSowMode(comp, thisZone, basisZoneData.sowMode)
             };
             yield return new Command_Action()
             {
-                defaultLabel = ("SmartFarming.Icon.SetAll".Translate() + basisZone.priorityGizmo.defaultLabel.ToLower()),
-                defaultDesc = basisZone.priorityGizmo.defaultDesc,
+                defaultLabel = ("SmartFarming.Icon.SetAll".Translate() + basisZoneData.priorityGizmo.defaultLabel.ToLower()),
+                defaultDesc = basisZoneData.priorityGizmo.defaultDesc,
                 icon = ResourceBank.iconPriority,
-                action = () => zoneData.SwitchPriority(basisZone.priority)
+                action = () => zoneData.SwitchPriority(basisZoneData.priority)
             };
+            if (basisZone != null)
+            {
+                yield return new Command_Action()
+                {
+                    defaultLabel = "SmartFarming.Icon.MergeZones".Translate(),
+                    defaultDesc = "SmartFarming.Icon.MergeZones.Desc".Translate(),
+                    icon = ResourceBank.mergeZones,
+                    action = () => zoneData.MergeZones(thisZone, basisZone)
+                };
+            }
             yield break;
         }
     }
@@ -243,4 +256,16 @@ namespace SmartFarming
             return true;
 		}
 	}
+
+    //Skip the contigious check for merged zones
+    [HarmonyPatch(typeof(Zone), nameof(Zone.CheckContiguous))]
+	static class Patch_CheckContiguous
+	{
+        static bool Prefix(Zone __instance)
+        {
+			return !(__instance is Zone_Growing zone && 
+            compCache.TryGetValue(zone.zoneManager.map.uniqueID, out MapComponent_SmartFarming mapComp) && 
+            mapComp.growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData) && zoneData.isMerged);       
+        }
+    }
 }

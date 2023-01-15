@@ -14,6 +14,9 @@
 	<SmartFarming.Icon.AllowHarvest.Desc>Turn this off to forbid pawns from harvesting this zone.</SmartFarming.Icon.AllowHarvest.Desc>
 	<SmartFarming.Icon.OrchardAlignment>Align plants</SmartFarming.Icon.OrchardAlignment>
 	<SmartFarming.Icon.OrchardAlignment.Desc>For plants that need a clearance zone, such as trees, pawns will try to align them in rows. This may not work well for oddly shaped zones.</SmartFarming.Icon.OrchardAlignment.Desc>
+	<SmartFarming.Icon.MergeZones>Merge zones</SmartFarming.Icon.MergeZones>
+	<SmartFarming.Icon.MergeZones.Desc>Merge the selected zones into a single zone, using the first selected zone as the reference.
+	</SmartFarming.Icon.MergeZones.Desc>
 	
 	<SmartFarming.Icon.Low>Low</SmartFarming.Icon.Low>
 	<SmartFarming.Icon.Normal>Normal</SmartFarming.Icon.Normal>

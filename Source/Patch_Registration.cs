@@ -50,7 +50,10 @@ namespace SmartFarming
     {
         static void Postfix(Zone_Growing __instance)
         {
-			compCache[__instance.zoneManager.map.uniqueID].CalculateAll(__instance);
+            if (compCache.TryGetValue(__instance.zoneManager.map.uniqueID, out MapComponent_SmartFarming mapComp))
+            {
+                mapComp.CalculateAll(__instance);
+            }
         }
     }
 
@@ -74,8 +77,7 @@ namespace SmartFarming
     {
         static void Postfix(Zone __instance)
         {
-            Zone_Growing zone = __instance as Zone_Growing;
-			if (zone != null && zone.cells.Count > 0 && compCache.TryGetValue(zone.zoneManager.map.uniqueID, out MapComponent_SmartFarming mapComp))
+			if (__instance is Zone_Growing zone && zone.cells.Count > 0 && compCache.TryGetValue(zone.zoneManager.map.uniqueID, out MapComponent_SmartFarming mapComp))
             {
                 mapComp.CalculateAll(zone);
                 if (mapComp.growZoneRegistry.TryGetValue(zone.ID, out ZoneData zoneData)) zoneData.CalculateCornerCell(zone);

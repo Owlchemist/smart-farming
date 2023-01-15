@@ -10,6 +10,22 @@ namespace SmartFarming
 {
 	public class ZoneData : IExposable
 	{
+		public Priority priority; public enum Priority { Low = 1, Normal, Preferred, Important, Critical}
+		public SowMode sowMode; public enum SowMode { On, Off, Smart, Force }
+		public Dictionary<SowMode, Texture2D> iconCache = new Dictionary<SowMode, Texture2D>()
+		{ 
+			{SowMode.On, ResourceBank.sowIconOn},
+			{SowMode.Off, ResourceBank.sowIconOff},
+			{SowMode.Force, ResourceBank.sowIconForce},
+			{SowMode.Smart, ResourceBank.sowIconSmart}
+		};
+		public float fertilityAverage, fertilityLow, averageGrowth, nutritionYield, nutritionCache;
+		public long minHarvestDay, minHarvestDayForNewlySown;
+		public bool noPettyJobs, allowHarvest = true, alwaysSow = false, orchardAlignment, isMerged;
+		public Command_Action sowGizmo = default(Command_Action), priorityGizmo = default(Command_Action), harvestGizmo = default(Command_Action);
+		public Command_Toggle pettyJobsGizmo = default(Command_Toggle), allowHarvestGizmo = default(Command_Toggle), orchardGizmo = default(Command_Toggle);
+		public IntVec3 cornerCell;
+
 		public ZoneData()
 		{
 			fertilityAverage = 1f;
@@ -133,32 +149,29 @@ namespace SmartFarming
 		public void CalculateCornerCell(Zone_Growing zone)
 		{
 			int southMost = Int16.MaxValue, westMost = Int16.MaxValue;
-			foreach (var cell in zone.cells)
+			var length = zone.cells.Count;
+			for (int i = 0; i < length; i++)
 			{
+				var cell = zone.cells[i];
 				if (cell.x < southMost) southMost = cell.x;
 				if (cell.z < westMost) westMost = cell.z;
 			}
 			this.cornerCell = new IntVec3(southMost, 0 , westMost);
 		}
-		
-		public Priority priority; public enum Priority { Low = 1, Normal, Preferred, Important, Critical}
-		public SowMode sowMode; public enum SowMode { On, Off, Smart, Force }
-		public Dictionary<SowMode, Texture2D> iconCache = new Dictionary<SowMode, Texture2D>()
-		{ 
-			{SowMode.On, ResourceBank.sowIconOn},
-			{SowMode.Off, ResourceBank.sowIconOff},
-			{SowMode.Force, ResourceBank.sowIconForce},
-			{SowMode.Smart, ResourceBank.sowIconSmart}
-		};
-		public float fertilityAverage, fertilityLow, averageGrowth, nutritionYield, nutritionCache;
-		public long minHarvestDay, minHarvestDayForNewlySown;
-		public bool noPettyJobs, allowHarvest = true, alwaysSow = false, orchardAlignment;
-		public Command_Action sowGizmo = default(Command_Action);
-		public Command_Action priorityGizmo = default(Command_Action);
-		public Command_Toggle pettyJobsGizmo = default(Command_Toggle);
-		public Command_Toggle allowHarvestGizmo = default(Command_Toggle);
-		public Command_Action harvestGizmo = default(Command_Action);
-		public Command_Toggle orchardGizmo = default(Command_Toggle);
-		public IntVec3 cornerCell;
+		public void MergeZones(Zone_Growing thisZone, Zone_Growing otherZone)
+		{
+			if (thisZone == otherZone)
+			{
+				this.isMerged = true;
+				return;
+			}
+			var workingList = new List<IntVec3>(thisZone.cells);
+			foreach (var cell in workingList)
+			{
+				thisZone.RemoveCell(cell);
+				otherZone.AddCell(cell);
+			}
+			Find.Selector.Deselect(thisZone);
+		}
 	}
 }
