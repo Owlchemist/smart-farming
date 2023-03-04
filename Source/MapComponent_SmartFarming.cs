@@ -315,27 +315,26 @@ namespace SmartFarming
 			hour = GenDate.HourOfDay(Current.gameInt.tickManager.ticksGameInt, latitude);
 		}
 
-		public int HarvestNow(Zone_Growing zone, bool roofCheck = true)
+		public int HarvestNow(Zone_Growing zone, bool roofCheck = true, bool checkSensitivity = true)
 		{
 			ThingDef crop = zone?.plantDefToGrow;
 			if (crop == null) return 0;
-			Map map = this.map;
 
 			int result = 0;
-			int length = zone.cells.Count;
-			for (int i = 0; i < length; ++i)
+			var cells = zone.cells;
+			var thingGrid = map.thingGrid;
+			var designationManager = map.designationManager;
+			var roofGrid = map.roofGrid;
+			for (int i = cells.Count; i-- > 0;)
 			{
-				Plant plant = map.thingGrid.ThingAt<Plant>(zone.cells[i]) as Plant;
-
-				if (plant?.def == crop && //Is this the right plant?
-				plant.Growth >= plant.def.plant.harvestMinGrowth && //Ready for harvest?
-				plant.def.plant.harvestedThingDef != null && //Can be harvested?
-				plant.def.plant.dieIfLeafless && //Can die to the cold?
-				!map.designationManager.HasMapDesignationOn(plant) &&  //Is not already designatd?
-				(!roofCheck || !map.roofGrid.Roofed(plant.Position))) //Is not roofed?
+				if (thingGrid.ThingAt<Plant>(zone.cells[i]) is Plant plant && plant.def == crop && //Is this the right plant?
+				plant.HarvestableNow && //Ready for harvest?
+				(!checkSensitivity || plant.def.plant.dieIfLeafless) && //Can die to the cold?
+				!designationManager.HasMapDesignationOn(plant) &&  //Is not already designatd?
+				(!roofCheck || !roofGrid.Roofed(plant.Position))) //Is not roofed?
 				{
 					++result;
-					map.designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
+					designationManager.AddDesignation(new Designation(plant, DesignationDefOf.HarvestPlant));
 				}
 			}
 			return result;

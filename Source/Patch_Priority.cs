@@ -50,6 +50,7 @@ namespace SmartFarming
         {
 			bool ran = false;
 			bool skipOriginal = false;
+			var method = AccessTools.Property(typeof(Zone), nameof(Zone.Cells)).GetGetMethod();
 			foreach (var code in instructions)
 			{
 				if (ran && !skipOriginal)
@@ -58,7 +59,7 @@ namespace SmartFarming
 					continue;
 				}
 				yield return code;
-				if (!ran && code.opcode == OpCodes.Callvirt && code.OperandIs(AccessTools.Property(typeof(Zone), nameof(Zone.Cells)).GetGetMethod()))
+				if (!ran && code.opcode == OpCodes.Callvirt && code.OperandIs(method))
                 {
                     yield return new CodeInstruction(OpCodes.Ldloc_0);
 					yield return new CodeInstruction(OpCodes.Call, typeof(MapComponent_SmartFarming).GetMethod(nameof(MapComponent_SmartFarming.DrawFieldEdges)));

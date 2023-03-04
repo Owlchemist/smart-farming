@@ -86,7 +86,7 @@ namespace SmartFarming
 					defaultLabel = "SmartFarming.Icon.HarvestNow".Translate(),
 					defaultDesc = "SmartFarming.Icon.HarvestNow.Desc".Translate(),
 					icon = ResourceBank.iconHarvest,
-					action = () => comp.HarvestNow(zone, roofCheck: false)
+					action = () => comp.HarvestNow(zone, roofCheck: false, checkSensitivity: false)
 				};
 			orchardGizmo = new Command_Toggle
 				{
@@ -149,10 +149,10 @@ namespace SmartFarming
 		public void CalculateCornerCell(Zone_Growing zone)
 		{
 			int southMost = Int16.MaxValue, westMost = Int16.MaxValue;
-			var length = zone.cells.Count;
-			for (int i = 0; i < length; i++)
+			var cells = zone.cells;
+			for (int i = cells.Count; i-- > 0;)
 			{
-				var cell = zone.cells[i];
+				var cell = cells[i];
 				if (cell.x < southMost) southMost = cell.x;
 				if (cell.z < westMost) westMost = cell.z;
 			}

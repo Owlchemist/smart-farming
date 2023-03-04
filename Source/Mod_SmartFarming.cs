@@ -86,16 +86,16 @@ namespace SmartFarming
 	{
 		public override void ExposeData()
 		{
-			Scribe_Values.Look<bool>(ref useAverageFertility, "useAverageFertility");
-			Scribe_Values.Look<bool>(ref autoCutBlighted, "autoCutBlighted", true);
-			Scribe_Values.Look<bool>(ref autoCutDying, "autoCutDying", true);
-			Scribe_Values.Look<bool>(ref coldSowing, "coldSowing", true);
-			Scribe_Values.Look<bool>(ref autoHarvestNow, "autoHarvestNow", true);
-			Scribe_Values.Look<float>(ref processedFoodFactor, "processedFoodFactor", 1.8f);
-			Scribe_Values.Look<float>(ref minTempAllowed, "minTempAllowed", -3f);
-			Scribe_Values.Look<float>(ref pettyJobs, "pettyJobs", 0.2f);
-			Scribe_Values.Look<bool>(ref allowHarvestOption, "allowHarvestOption");
-			Scribe_Values.Look<bool>(ref orchardAlignment, "orchardAlignment", true);
+			Scribe_Values.Look(ref useAverageFertility, "useAverageFertility");
+			Scribe_Values.Look(ref autoCutBlighted, "autoCutBlighted", true);
+			Scribe_Values.Look(ref autoCutDying, "autoCutDying", true);
+			Scribe_Values.Look(ref coldSowing, "coldSowing", true);
+			Scribe_Values.Look(ref autoHarvestNow, "autoHarvestNow", true);
+			Scribe_Values.Look(ref processedFoodFactor, "processedFoodFactor", 1.8f);
+			Scribe_Values.Look(ref minTempAllowed, "minTempAllowed", -3f);
+			Scribe_Values.Look(ref pettyJobs, "pettyJobs", 0.2f);
+			Scribe_Values.Look(ref allowHarvestOption, "allowHarvestOption");
+			Scribe_Values.Look(ref orchardAlignment, "orchardAlignment", true);
 
 			base.ExposeData();
 		}
